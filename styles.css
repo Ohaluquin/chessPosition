@@ -1,0 +1,33 @@
+.app-container {
+    display: flex;
+    align-items: flex-start; /* Alinear verticalmente en la parte superior */
+}
+
+.menu {
+    margin-right: 10px; /* Espaciado entre el menú y el tablero */
+}
+
+.board {
+    width: 90%;
+    height: 90%;
+    margin: 20px auto;
+}
+
+.menu_option {
+    padding: 5px;
+}
+
+.movimientos {
+    min-width: 30rem;
+    padding: 10px;
+}
+
+#fenInput {
+    width: 30rem;
+}
+
+.current-move {
+    font-weight: bold;
+    color: red;
+  }
+  

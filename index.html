@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
+    <title>Ajedrez</title>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="menu">
+            <h1>Chess position</h1>
+            <div class="menu_option">
+                <label for="fileInput">Leer archivo de movimientos:</label>
+                <input type="file" id="fileInput" accept=".pgn" />
+            </div>
+            <div class="menu_option">
+                <input type="text" id="fenInput" placeholder="Editar posición FEN" />
+                <button id="applyFEN">Aplicar FEN</button>
+            </div>
+            <div class="menu_option">
+                <button id="resetBoard">Reiniciar Tablero</button>
+            </div>
+        </div>
+        <div class="board" id="chessboard">
+            <canvas id="chessCanvas" width="600" height="600"></canvas>
+        </div>
+        <div class="movimientos">
+            <button id="previous-move">Previous Move</button>
+            <button id="next-move">Next Move</button>
+            <div id="move-list"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
