@@ -1,33 +1,74 @@
 .app-container {
-    display: flex;
-    align-items: flex-start; /* Alinear verticalmente en la parte superior */
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .menu {
-    margin-right: 10px; /* Espaciado entre el menú y el tablero */
+  margin-right: 20px; /* Espaciado entre el menú y el tablero */
 }
 
 .board {
-    width: 90%;
-    height: 90%;
-    margin: 20px auto;
+  width: 50%;
+  height: 50%;
+  margin: 10px auto;
 }
 
 .menu_option {
-    padding: 5px;
+  padding: 25px;
 }
 
 .movimientos {
-    min-width: 30rem;
-    padding: 10px;
+  min-width: 30rem;
+  padding: 10px;
 }
 
 #fenInput {
-    width: 30rem;
+  width: 25rem;
 }
 
 .current-move {
-    font-weight: bold;
-    color: red;
+  font-weight: bold;
+  color: red;
+}
+
+@media (max-width: 768px) {
+  .container {
+    display: flex;
+    flex-direction: column;
   }
-  
+
+  .part {
+    width: 100%;
+  }
+
+  .left,
+  .right {
+    display: none;
+  }
+}
+
+@media only screen and (min-width: 768px) {
+  .nav {
+    display: none;
+  }
+}
+
+.key {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.key:hover {
+  background-color: #ea8282;
+}
+
+.key:active {
+  background-color: #de1414;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+}

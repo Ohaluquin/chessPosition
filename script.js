@@ -9,7 +9,7 @@ var coordinatesColor = "#000000"; // Black color for coordinates
 var marginColor = "#f0e4d7"; // Light beige for margin background
 
 // Define the size of the squares and the board
-var squareSize = 60;
+var squareSize = 45;
 var boardSize = 8;
 
 // Constants for margin size and font settings

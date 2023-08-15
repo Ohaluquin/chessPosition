@@ -10,8 +10,14 @@
 </head>
 
 <body>
+    <div class="nav botones" name="botones">
+        <button class="key" onclick="leftBtn()">Menú</button>
+        <button class="key" onclick="centerBtn()">Tablero</button>
+        <button class="key" onclick="rightBtn()">Movimientos</button>
+    </div>
+    <hr>
     <div class="app-container">
-        <div class="menu">
+        <div id="left" class="menu part left">
             <h1>Chess position</h1>
             <div class="menu_option">
                 <label for="fileInput">Leer archivo de movimientos:</label>
@@ -25,16 +31,17 @@
                 <button id="resetBoard">Reiniciar Tablero</button>
             </div>
         </div>
-        <div class="board" id="chessboard">
-            <canvas id="chessCanvas" width="600" height="600"></canvas>
+        <div class="part center board" id="chessboard">
+            <canvas id="chessCanvas"></canvas>
         </div>
-        <div class="movimientos">
+        <div id="right" class="part right movimientos">
             <button id="previous-move">Previous Move</button>
             <button id="next-move">Next Move</button>
             <div id="move-list"></div>
         </div>
     </div>
     <script src="script.js"></script>
+    <script src="select_column.js"></script>
 </body>
 
 </html>
