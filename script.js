@@ -1,27 +1,25 @@
-// Get a reference to the canvas element
 var canvas = document.getElementById("chessCanvas");
 var ctx = canvas.getContext("2d");
 
-// Define the colors for the squares and coordinates
 var whiteColor = "#b5f0cd";
 var blackColor = "#59a473";
-var coordinatesColor = "#000000"; // Black color for coordinates
-var marginColor = "#f0e4d7"; // Light beige for margin background
+var coordinatesColor = "#000000";
+var marginColor = "#f0e4d7";
+var selectedSquareColor = "rgba(255, 215, 0, 0.45)";
+var legalMoveColor = "rgba(20, 61, 42, 0.28)";
+var captureMoveColor = "rgba(201, 47, 47, 0.35)";
+var lastMoveColor = "rgba(52, 152, 219, 0.28)";
 
-// Define the size of the squares and the board
 var squareSize = 45;
 var boardSize = 8;
-
-// Constants for margin size and font settings
 var marginSize = 20;
 var fontSize = 12;
 var font = fontSize + "px Arial";
 
-// Adjust the canvas size to include the margin
 canvas.width = boardSize * squareSize + marginSize;
 canvas.height = boardSize * squareSize + marginSize;
 
-const piezas = {
+var piezas = {
   p: "BlackPawn.png",
   r: "BlackRook.png",
   n: "BlackKnight.png",
@@ -33,289 +31,461 @@ const piezas = {
   N: "WhiteKnight.png",
   B: "WhiteBishop.png",
   Q: "WhiteQueen.png",
-  K: "WhiteKing.png",
+  K: "WhiteKing.png"
 };
 
-document.getElementById('resetBoard').addEventListener('click', resetBoard);
-document.getElementById('applyFEN').addEventListener('click', loadFen);
-document.getElementById('fileInput').addEventListener('change', loadPgn);
+var initialFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+var chess = new Chess(initialFEN);
+var selectedPiece = null;
+var legalMoves = [];
+var moves = [];
+var currentMoveIndex = 0;
+var lastMove = null;
+var pendingPromotion = null;
+
+var fenInput = document.getElementById("fenInput");
+var statusText = document.getElementById("statusText");
+var moveListDiv = document.getElementById("move-list");
+var previousMoveButton = document.getElementById("previous-move");
+var nextMoveButton = document.getElementById("next-move");
+var promotionModal = document.getElementById("promotionModal");
+var promotionOptions = document.getElementById("promotionOptions");
+
+var pieceImages = preloadPieceImages();
+
+document.getElementById("resetBoard").addEventListener("click", resetBoard);
+document.getElementById("applyFEN").addEventListener("click", loadFen);
+document.getElementById("fileInput").addEventListener("change", loadPgn);
+previousMoveButton.addEventListener("click", goToPreviousMove);
+nextMoveButton.addEventListener("click", goToNextMove);
+moveListDiv.addEventListener("click", onMoveListClick);
+canvas.addEventListener("click", onCanvasClick);
+
+drawPosition();
+
+function preloadPieceImages() {
+  var images = {};
+  Object.keys(piezas).forEach(function(symbol) {
+    var image = new Image();
+    image.src = "img/" + piezas[symbol];
+    images[symbol] = image;
+  });
+  return images;
+}
 
 function drawBoard() {
-  // Fill the entire margin area with the specified color
   ctx.fillStyle = marginColor;
-  ctx.fillRect(0, 0, canvas.width, canvas.height); // Fill entire margin area
-  // Draw the squares by iterating through the rows and columns
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   for (var row = 0; row < boardSize; row++) {
     for (var col = 0; col < boardSize; col++) {
       var color = (row + col) % 2 === 0 ? whiteColor : blackColor;
       ctx.fillStyle = color;
-      ctx.fillRect( // Note the addition of the marginSize to the x-coordinate
-        col * squareSize + marginSize,
-        row * squareSize,
-        squareSize,
-        squareSize
-      );
+      ctx.fillRect(col * squareSize + marginSize, row * squareSize, squareSize, squareSize);
     }
   }
-  ctx.fillStyle = coordinatesColor; // Draw the letters A to H at the bottom
+
+  ctx.fillStyle = coordinatesColor;
   ctx.font = font;
   ctx.textAlign = "center";
-  for (var col = 0; col < boardSize; col++) {
-    var letter = String.fromCharCode(65 + col);
+
+  for (var boardCol = 0; boardCol < boardSize; boardCol++) {
     ctx.fillText(
-      letter,
-      col * squareSize + squareSize / 2 + marginSize,
+      String.fromCharCode(65 + boardCol),
+      boardCol * squareSize + squareSize / 2 + marginSize,
       canvas.height - marginSize / 2 + fontSize / 2
     );
   }
-  ctx.textAlign = "right"; // Draw the numbers 1 to 8 on the left side
-  for (var row = 0; row < boardSize; row++) {
-    var number = boardSize - row;
+
+  ctx.textAlign = "right";
+  for (var boardRow = 0; boardRow < boardSize; boardRow++) {
     ctx.fillText(
-      number,
+      boardSize - boardRow,
       marginSize / 2,
-      row * squareSize + squareSize / 2 + fontSize / 2
+      boardRow * squareSize + squareSize / 2 + fontSize / 2
     );
   }
 }
 
-function drawFenPosition(fen) {
-  updateFenInput(); // Update the FEN input box after the move
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-  drawBoard();
-  var rows = fen.split(' ')[0].split('/'); // Draw the pieces based on the FEN
+function drawHighlights() {
+  if (lastMove) {
+    highlightSquare(lastMove.from, lastMoveColor);
+    highlightSquare(lastMove.to, lastMoveColor);
+  }
+
+  if (selectedPiece) {
+    highlightSquare(selectedPiece.square, selectedSquareColor);
+  }
+
+  legalMoves.forEach(function(move) {
+    var highlightColor = move.captured ? captureMoveColor : legalMoveColor;
+    highlightSquare(move.to, highlightColor);
+  });
+}
+
+function highlightSquare(square, color) {
+  var coordinates = squareToCoordinates(square);
+  ctx.fillStyle = color;
+  ctx.fillRect(
+    coordinates.col * squareSize + marginSize,
+    coordinates.row * squareSize,
+    squareSize,
+    squareSize
+  );
+}
+
+function drawPiecesFromFen(fen) {
+  var rows = fen.split(" ")[0].split("/");
   for (var row = 0; row < 8; row++) {
     var col = 0;
-    for (var char of rows[7-row]) {
-      if (isNaN(char)) { // If it's a letter (piece symbol)
-        var pieceSymbol = char;
-        var imageName = piezas[pieceSymbol]; // Get the image name from the piezas array
-        var image = new Image();
-        image.src = 'img/' + imageName; // Adjust the path
-        var x = col * squareSize + marginSize;
-        var y = (7 - row) * squareSize;
-        image.onload = (function(x, y, image) {
-          return function() {
-            ctx.drawImage(image, x, y, squareSize, squareSize);
-          };
-        })(x, y, image);
+    for (var i = 0; i < rows[row].length; i++) {
+      var char = rows[row][i];
+      if (isNaN(char)) {
+        drawPiece(row, col, char);
         col++;
-      } else { // If it's a number (empty squares)
-        col += parseInt(char);
+      } else {
+        col += parseInt(char, 10);
       }
     }
   }
 }
 
-
-// Initial FEN for the standard chess starting position
-var initialFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-var chess = new Chess(initialFEN);
-drawFenPosition(initialFEN); // Call the drawFenPosition function with the initial FEN
-var canvas = document.getElementById('chessCanvas'); // Reference to the canvas element
-var selectedPiece = null; // Variable to hold the currently selected piece
-var moves = []; // Array of moves
-var currentMoveIndex = 0;
-
-// Add a click event listener to the canvas
-canvas.addEventListener('click', function(event) {
-  // Get the mouse click position
-  var x = event.clientX - canvas.getBoundingClientRect().left - marginSize;
-  var y = event.clientY - canvas.getBoundingClientRect().top;
-  // Calculate the row and column corresponding to the click
-  var row = Math.floor(y / squareSize);
-  var col = Math.floor(x / squareSize);
-  // Check if the click is within the board bounds
-  if (row >= 0 && row < 8 && col >= 0 && col < 8) {
-    // Handle the click on the square (row, col)
-    handleSquareClick(row, col);
+function drawPiece(row, col, pieceSymbol) {
+  var image = pieceImages[pieceSymbol];
+  if (!image) {
+    return;
   }
-});
 
-function handleSquareClick(row, col) { // Function to handle the click on a specific square
-  var square = toAlgebraic(row, col);
-  var piece = chess.get(square); // Get the piece at the clicked square using chess.js
-  if (selectedPiece) { // If there's already a selected piece, try to move it
-    movePiece(selectedPiece.square, square); // selectedPiece.square should be the algebraic notation of the selected piece's square
-    selectedPiece = null; // Deselect the piece
-  } else if (piece) { // If there's a piece at the clicked square, select it
-    selectedPiece = { square: square, piece: piece };
-  }
-}
-  
-function movePiece(fromSquare, toSquare) { // Perform the move using chess.js
-  var move = chess.move({
-    from: fromSquare,
-    to: toSquare
-  });
-  if (move) { // Redraw only the changed squares
-    redrawSquare(fromSquare); // Redraw the source square (empty)
-    redrawSquare(toSquare); // Redraw the destination square (with the moved piece)
-    updateFenInput(); // Update the FEN input box after the move
-  } else { // The move is illegal; you can show an error message or ignore it
-    console.log("Illegal move!");
-  }
-}
-
-function redrawSquare(square) { // Convert the algebraic notation to row and col
-  var row = 8 - parseInt(square[1]);
-  var col = 'abcdefgh'.indexOf(square[0]);
-  drawSquare(row, col); // Draw the square (empty or with the piece, depending on the new position)
-  var piece = chess.get(square);
-  if (piece) {
-    drawPiece(row, col, piece);
-  }
-}
-
-function toAlgebraic(row, col) {
-  var letters = 'abcdefgh';
-  var letter = letters[col];
-  var number = 8 - row; // La fila 0 corresponde al número 8, la fila 1 al número 7, etc.
-  return letter + number;
-}
-
-function drawSquare(row, col) {
   var x = col * squareSize + marginSize;
   var y = row * squareSize;
-  var color = (row + col) % 2 === 0 ? whiteColor : blackColor; // Ajusta los colores según tus preferencias
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, squareSize, squareSize);
-}
 
-function drawPiece(row, col, piece) {
-  var x = col * squareSize + marginSize;
-  var y = row * squareSize;
-  var imageName = pieceTypeToImageName(piece.type, piece.color); // Convierte el tipo y el color de la pieza en el nombre de la imagen
-  var image = new Image();
-  image.src = 'img/' + imageName; // Ajusta la ruta según la ubicación de tus imágenes
-  image.onload = function () {
+  if (image.complete) {
     ctx.drawImage(image, x, y, squareSize, squareSize);
+    return;
+  }
+
+  image.onload = function() {
+    drawPosition();
   };
 }
 
-function pieceTypeToImageName(type, color) { // Convert the type and color into a symbol used in the FEN
-  var symbol = type; // Assuming type is one of 'p', 'r', 'n', 'b', 'q', 'k'
-  if (color === 'w') {
-    symbol = symbol.toUpperCase(); // Convert to uppercase for white pieces
+function drawPosition() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBoard();
+  drawHighlights();
+  drawPiecesFromFen(chess.fen());
+  updateFenInput();
+  updateStatus();
+  updateMoveList();
+  toggleNavigationButtons();
+}
+
+function onCanvasClick(event) {
+  if (pendingPromotion) {
+    return;
   }
-  var imageName = piezas[symbol]; // Look up the image name in the piezas array
-  return imageName;
+
+  var x = event.clientX - canvas.getBoundingClientRect().left - marginSize;
+  var y = event.clientY - canvas.getBoundingClientRect().top;
+  var row = Math.floor(y / squareSize);
+  var col = Math.floor(x / squareSize);
+
+  if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+    handleSquareClick(row, col);
+  }
+}
+
+function handleSquareClick(row, col) {
+  var square = toAlgebraic(row, col);
+  var piece = chess.get(square);
+
+  if (selectedPiece && selectedPiece.square === square) {
+    clearSelection();
+    drawPosition();
+    return;
+  }
+
+  if (selectedPiece) {
+    var chosenMove = getLegalMoveTo(square);
+    if (chosenMove) {
+      if (needsPromotion(selectedPiece.square, square)) {
+        openPromotionDialog(selectedPiece.square, square);
+      } else {
+        executeBoardMove({ from: selectedPiece.square, to: square });
+      }
+      return;
+    }
+  }
+
+  if (piece && piece.color === chess.turn()) {
+    selectedPiece = { square: square, piece: piece };
+    legalMoves = chess.moves({ square: square, verbose: true });
+  } else {
+    clearSelection();
+  }
+
+  drawPosition();
+}
+
+function getLegalMoveTo(square) {
+  for (var i = 0; i < legalMoves.length; i++) {
+    if (legalMoves[i].to === square) {
+      return legalMoves[i];
+    }
+  }
+  return null;
+}
+
+function needsPromotion(fromSquare, toSquare) {
+  var piece = chess.get(fromSquare);
+  if (!piece || piece.type !== "p") {
+    return false;
+  }
+
+  return (piece.color === "w" && toSquare[1] === "8") || (piece.color === "b" && toSquare[1] === "1");
+}
+
+function openPromotionDialog(fromSquare, toSquare) {
+  pendingPromotion = { from: fromSquare, to: toSquare, color: chess.turn() };
+  promotionOptions.innerHTML = "";
+
+  ["q", "r", "b", "n"].forEach(function(pieceType) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "promotion-option";
+
+    var image = document.createElement("img");
+    image.src = "img/" + piezas[pendingPromotion.color === "w" ? pieceType.toUpperCase() : pieceType];
+    image.alt = pieceType;
+    button.appendChild(image);
+
+    button.addEventListener("click", function() {
+      executeBoardMove({
+        from: pendingPromotion.from,
+        to: pendingPromotion.to,
+        promotion: pieceType
+      });
+      closePromotionDialog();
+    });
+
+    promotionOptions.appendChild(button);
+  });
+
+  promotionModal.classList.remove("hidden");
+}
+
+function closePromotionDialog() {
+  pendingPromotion = null;
+  promotionModal.classList.add("hidden");
+}
+
+function executeBoardMove(moveData) {
+  var move = chess.move(moveData);
+  if (!move) {
+    return;
+  }
+
+  if (moves.length > 0 && currentMoveIndex < moves.length) {
+    moves = moves.slice(0, currentMoveIndex);
+  }
+
+  moves.push(move);
+  currentMoveIndex = moves.length;
+  lastMove = { from: move.from, to: move.to };
+  clearSelection();
+  drawPosition();
+}
+
+function clearSelection() {
+  selectedPiece = null;
+  legalMoves = [];
+}
+
+function toAlgebraic(row, col) {
+  return "abcdefgh"[col] + (8 - row);
+}
+
+function squareToCoordinates(square) {
+  return {
+    row: 8 - parseInt(square[1], 10),
+    col: "abcdefgh".indexOf(square[0])
+  };
 }
 
 function resetBoard() {
-  chess.reset(); // Reset the internal game state to the starting position
-  drawFenPosition(chess.fen()); // Redraw the board with the starting position
-  currentMoveIndex=0;
-  updateMoveList();
+  chess.reset();
+  moves = [];
+  currentMoveIndex = 0;
+  lastMove = null;
+  clearSelection();
+  closePromotionDialog();
+  drawPosition();
 }
 
 function loadFen() {
-  var fenInput = document.getElementById('fenInput');
   var fen = fenInput.value;
-  var valid = chess.validate_fen(fen); // Validate the FEN using chess.js
-  if (valid.valid) {
-    chess.load(fen); // Load the FEN into the internal game state
-    moves = []; // Reset the moves
-    currentMoveIndex = 0; // Reset the current move index
-    drawFenPosition(fen); // Redraw the board with the new position
-    updateMoveList();
-    toggleNavigationButtons(); // Function to enable/disable navigation buttons
-  } else {
-    alert('Invalid FEN: ' + valid.error); // Show an error message if the FEN is invalid
+  var valid = chess.validate_fen(fen);
+  if (!valid.valid) {
+    alert("FEN invalido: " + valid.error);
+    return;
   }
+
+  chess.load(fen);
+  moves = [];
+  currentMoveIndex = 0;
+  lastMove = null;
+  clearSelection();
+  closePromotionDialog();
+  drawPosition();
 }
 
-// Function to toggle navigation buttons based on available moves
 function toggleNavigationButtons() {
-  document.getElementById('next-move').disabled = moves.length === 0;
-  document.getElementById('previous-move').disabled = moves.length === 0;
+  nextMoveButton.disabled = currentMoveIndex >= moves.length;
+  previousMoveButton.disabled = currentMoveIndex <= 0;
 }
 
 function updateFenInput() {
-  var fen = chess.fen(); // Get the current FEN from chess.js
-  document.getElementById('fenInput').value = fen; // Update the input box with the FEN
+  fenInput.value = chess.fen();
+}
+
+function updateStatus() {
+  var sideToMove = chess.turn() === "w" ? "blancas" : "negras";
+  var status = "Turno: " + sideToMove;
+
+  if (chess.in_checkmate()) {
+    status = "Jaque mate. Ganan las " + (chess.turn() === "w" ? "negras" : "blancas") + ".";
+  } else if (chess.in_stalemate()) {
+    status = "Tablas por ahogado.";
+  } else if (chess.in_draw()) {
+    status = "Tablas.";
+  } else if (chess.in_check()) {
+    status += " en jaque.";
+  }
+
+  statusText.textContent = status;
 }
 
 async function loadPgn() {
-  var fileInput = document.getElementById('fileInput');
+  var fileInput = document.getElementById("fileInput");
   var file = fileInput.files[0];
-  if (!file) return; // Simply return if no file is selected
+  if (!file) {
+    return;
+  }
+
   try {
     var pgn = await readFileAsText(file);
     var result = chess.load_pgn(pgn);
-    if (result) {
-      moves = chess.history({ verbose: true }); // Save the moves
-      chess.reset(); // Reset to the initial position
-      currentMoveIndex = 0; // Set to the end of the game
-      drawFenPosition(chess.fen());
-      updateFenInput(); // Update the FEN input box
-      updateMoveList();
-      toggleNavigationButtons(); // Update the navigation buttons based on the new moves
-    } else {
-      alert('Invalid PGN file');
+    if (!result) {
+      alert("Archivo PGN invalido");
+      return;
     }
+
+    moves = chess.history({ verbose: true });
+    chess.reset();
+    currentMoveIndex = 0;
+    lastMove = null;
+    clearSelection();
+    closePromotionDialog();
+    drawPosition();
   } catch (error) {
-    alert('Error reading PGN file: ' + error);
+    alert("Error leyendo archivo PGN: " + error);
   }
 }
- 
+
 function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        resolve(e.target.result);
-      };
-      reader.onerror = function(e) {
-        reject(new Error('Failed to read file'));
-      };
-      reader.readAsText(file);
-    });
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      resolve(event.target.result);
+    };
+    reader.onerror = function() {
+      reject(new Error("No se pudo leer el archivo"));
+    };
+    reader.readAsText(file);
+  });
+}
+
+function updateMoveList() {
+  var html = "<ol>";
+
+  for (var i = 0; i < moves.length; i += 2) {
+    html += "<li>";
+
+    if (moves[i]) {
+      html += buildMoveLink(i);
+    }
+
+    if (moves[i + 1]) {
+      html += buildMoveLink(i + 1);
+    }
+
+    html += "</li>";
   }
 
-  function updateMoveList() {
-    var moveListDiv = document.getElementById('move-list');
-    var html = '<ol>';
-    for (var i = 0; i < moves.length; i += 2) {
-      html += '<li>';
-      if (moves[i]) {
-        html += '<a href="#" onclick="goToMove(' + i + ')"' + (i === currentMoveIndex ? ' class="current-move"' : '') + '>' + moves[i].san + '</a> ';
-      }
-      if (moves[i + 1]) {
-        html += '<a href="#" onclick="goToMove(' + (i + 1) + ')"' + (i + 1 === currentMoveIndex ? ' class="current-move"' : '') + '>' + moves[i + 1].san + '</a>';
-      }
-      html += '</li>';
-    }
-    html += '</ol>';
-    moveListDiv.innerHTML = html;
+  html += "</ol>";
+  moveListDiv.innerHTML = html;
+}
+
+function buildMoveLink(index) {
+  var isCurrent = index === currentMoveIndex - 1;
+  return (
+    '<a href="#" data-move-index="' +
+    index +
+    '"' +
+    (isCurrent ? ' class="current-move"' : "") +
+    ">" +
+    moves[index].san +
+    "</a> "
+  );
+}
+
+function onMoveListClick(event) {
+  var moveLink = event.target.closest("[data-move-index]");
+  if (!moveLink) {
+    return;
   }
-    
-  document.getElementById('previous-move').addEventListener('click', function() {
-    if (currentMoveIndex > 0) {
-      currentMoveIndex--;
-      var move = moves[currentMoveIndex];
-      chess.undo(); // Revert the last move
-      redrawSquare(move.from);
-      redrawSquare(move.to);
-      updateMoveList();
-    }
-  });
-  
-  document.getElementById('next-move').addEventListener('click', function() {
-    if (currentMoveIndex < moves.length) {
-      var move = moves[currentMoveIndex];
-      movePiece(move.from, move.to);
-      currentMoveIndex++;
-      updateMoveList();
-    }
-  });
-  
-  function goToMove(index) {
-    chess.reset();
-    for (var i = 0; i < index; i++) {
-      chess.move(moves[i]);
-    }
-    currentMoveIndex = index;
-    drawFenPosition(chess.fen());
-    updateMoveList();
+
+  event.preventDefault();
+  goToMove(parseInt(moveLink.getAttribute("data-move-index"), 10));
+}
+
+function goToPreviousMove() {
+  if (currentMoveIndex <= 0) {
+    return;
   }
- 
+
+  chess.undo();
+  currentMoveIndex--;
+  clearSelection();
+  closePromotionDialog();
+  lastMove = currentMoveIndex > 0
+    ? { from: moves[currentMoveIndex - 1].from, to: moves[currentMoveIndex - 1].to }
+    : null;
+  drawPosition();
+}
+
+function goToNextMove() {
+  if (currentMoveIndex >= moves.length) {
+    return;
+  }
+
+  var move = chess.move(moves[currentMoveIndex]);
+  currentMoveIndex++;
+  clearSelection();
+  lastMove = move ? { from: move.from, to: move.to } : null;
+  drawPosition();
+}
+
+function goToMove(index) {
+  chess.reset();
+
+  for (var i = 0; i <= index; i++) {
+    chess.move(moves[i]);
+  }
+
+  currentMoveIndex = index + 1;
+  clearSelection();
+  closePromotionDialog();
+  lastMove = moves[index] ? { from: moves[index].from, to: moves[index].to } : null;
+  drawPosition();
+}
