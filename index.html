@@ -4,55 +4,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Horarios Escolar</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
-    <title>Ajedrez</title>
 </head>
 
 <body>
-    <div class="nav botones" name="botones">
-        <button class="key" onclick="leftBtn()">Menu</button>
-        <button class="key" onclick="centerBtn()">Tablero</button>
-        <button class="key" onclick="rightBtn()">Movimientos</button>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>Generador de Horarios</h1>
+                <p>Menu de trabajo</p>
+            </div>
+
+            <div class="sidebar-menu">
+                <section class="menu-section is-open" data-section="archivos">
+                    <button class="menu-toggle" type="button" data-toggle-section="archivos" aria-expanded="true">
+                        Archivos y reportes
+                    </button>
+                    <div class="menu-panel">
+                        <ul class="menu-list">
+                            <li><button id="btn-import" class="menu-item">Importar JSON</button></li>
+                            <li><button id="btn-load-template" class="menu-item">Cargar plantilla</button></li>
+                            <li><button id="btn-export" class="menu-item">Exportar JSON</button></li>
+                            <li><button id="btn-print-grupos" class="menu-item">Grupos HTML</button></li>
+                            <li><button id="btn-print-profes" class="menu-item">Profesores HTML</button></li>
+                            <li><button id="btn-export-escolares" class="menu-item">Escolares TXT</button></li>
+                        </ul>
+                        <input id="file-input" type="file" accept="application/json,.json" style="display:none" />
+                    </div>
+                </section>
+
+                <section class="menu-section" data-section="vistas">
+                    <button class="menu-toggle" type="button" data-toggle-section="vistas" aria-expanded="false">
+                        Vistas
+                    </button>
+                    <div class="menu-panel">
+                        <ul class="menu-list">
+                            <li><button id="btn-view-grupos" class="menu-item">Grupos</button></li>
+                            <li><button id="btn-view-profesores" class="menu-item">Profesores</button></li>
+                            <li><button id="btn-view-aulas" class="menu-item">Aulas</button></li>
+                            <li><button id="btn-view-academias" class="menu-item">Academias</button></li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="menu-section" data-section="automatizacion">
+                    <button class="menu-toggle" type="button" data-toggle-section="automatizacion" aria-expanded="false">
+                        Automatizacion
+                    </button>
+                    <div class="menu-panel">
+                        <ul class="menu-list">
+                            <li><button id="btn-auto-profesores" class="menu-item">Autoasignar Profesores</button></li>
+                            <li><button id="btn-auto-schedule" class="menu-item menu-item-primary">Autoprogramar Grupo</button></li>
+                            <li><button id="btn-auto-schedule-all" class="menu-item">Autoprogramar Todo</button></li>
+                            <li><button id="btn-auto-rooms" class="menu-item">Autoasignar Aulas</button></li>
+                        </ul>
+                        <div class="filter-row">
+                            <label for="chk-auto-use-variants">
+                                <input id="chk-auto-use-variants" type="checkbox">
+                                Usar variantes por asignatura
+                            </label>
+                        </div>
+                        <div id="automation-progress" class="automation-progress" hidden>
+                            <div class="automation-progress-head">
+                                <strong id="automation-progress-label">Procesando...</strong>
+                                <span id="automation-progress-count"></span>
+                            </div>
+                            <div class="automation-progress-bar">
+                                <div id="automation-progress-fill" class="automation-progress-fill"></div>
+                            </div>
+                            <small id="automation-progress-detail"></small>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <h3 id="sidebar-title">Grupos</h3>
+
+            <div id="grupos-list"></div>
+
+            <div id="profesores-panel" style="display:none">
+                <div class="filter-row">
+                    <label for="prof-academia-filter">Academia</label>
+                    <select id="prof-academia-filter"></select>
+                </div>
+                <div id="profesores-list"></div>
+            </div>
+
+            <div id="aulas-list" style="display:none"></div>
+            <div id="academias-list" style="display:none"></div>
+        </aside>
+
+        <main class="content">
+            <h2 id="current-view-title">Seleccione un Grupo</h2>
+
+            <div id="group-editor" class="panel" style="display:none;">
+                <div class="group-editor-layout">
+                    <div class="group-editor-main">
+                        <div class="row editor-row">
+                            <label for="group-name">Nombre</label>
+                            <input id="group-name" type="text" style="flex:1;" />
+                        </div>
+
+                        <div class="row editor-row">
+                            <label for="group-turno">Turno</label>
+                            <select id="group-turno" style="flex:1;">
+                                <option value="matutino">Matutino</option>
+                                <option value="vespertino">Vespertino</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="group-editor-actions">
+                        <button id="btn-group-save" class="btn-primary">Guardar Grupo</button>
+                    </div>
+                </div>
+
+                <div id="group-stats" class="group-stats"></div>
+
+                <div class="group-subjects-layout">
+                    <div class="group-subjects-column">
+                        <h3>Asignaturas del grupo</h3>
+                        <select id="group-subjects-list" size="8"></select>
+                    </div>
+
+                    <div class="group-subject-detail">
+                        <h3>Detalle</h3>
+                        <div id="group-subject-detail"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="prof-editor" class="panel" style="display:none;">
+                <div class="prof_editor">
+                    <div class="row" style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                        <label style="min-width:70px;">Nombre</label>
+                        <input id="prof-name" type="text" style="flex:1;" />
+                    </div>
+
+                    <div class="row" style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                        <label style="min-width:70px;">Turno</label>
+                        <select id="prof-turno" style="flex:1;">
+                            <option value="matutino">Matutino</option>
+                            <option value="vespertino">Vespertino</option>
+                        </select>
+                    </div>
+
+                    <div class="row" style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                        <label style="min-width:70px;"></label>
+                        <label style="display:flex; align-items:center; gap:8px;">
+                            <input id="prof-activo" type="checkbox" />
+                            Activo
+                        </label>
+                    </div>
+
+                    <div class="row" style="display:flex; gap:10px; justify-content:flex-end;">
+                        <button id="btn-prof-save" class="btn-primary">Guardar Profesor</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="main-grid" class="grid-container">
+            </div>
+        </main>
     </div>
-    <hr>
-    <div class="app-container">
-        <div id="left" class="menu part left">
-            <h1>Chess position</h1>
-            <div class="menu_option">
-                <label for="fileInput">Leer archivo de movimientos:</label>
-                <input type="file" id="fileInput" accept=".pgn" />
+
+    <div id="dialog-session" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Editar Sesion</h3>
+            <input type="hidden" id="input-day">
+            <input type="hidden" id="input-hour">
+
+            <div class="form-group">
+                <label>Asignatura:</label>
+                <select id="select-asignatura"></select>
+                <small id="session-duration-hint"></small>
             </div>
-            <div class="menu_option">
-                <input type="text" id="fenInput" placeholder="Editar posicion FEN" />
-                <button id="applyFEN">Aplicar FEN</button>
+
+            <div class="form-group">
+                <label>Tipo de sesion:</label>
+                <select id="select-session-kind"></select>
             </div>
-            <div class="menu_option">
-                <button id="resetBoard">Reiniciar Tablero</button>
+
+            <div class="form-group">
+                <label>Profesor:</label>
+                <select id="select-profesor"></select>
             </div>
-            <div class="menu_option status-panel">
-                <h2>Estado</h2>
-                <p id="statusText">Turno: blancas</p>
+
+            <div class="form-group">
+                <label>Aula:</label>
+                <select id="select-aula"></select>
             </div>
-        </div>
-        <div class="part center board" id="chessboard">
-            <canvas id="chessCanvas"></canvas>
-        </div>
-        <div id="right" class="part right movimientos">
-            <button id="previous-move">Anterior</button>
-            <button id="next-move">Siguiente</button>
-            <div id="move-list"></div>
+
+            <div class="form-group form-group-inline">
+                <label class="checkbox-row">
+                    <input id="input-session-locked" type="checkbox">
+                    Fijar bloque (LOCK)
+                </label>
+                <small>Los bloques fijados no se moveran durante la reoptimizacion automatica.</small>
+            </div>
+
+            <div class="modal-actions">
+                <button id="form-save-session" class="btn-primary">Guardar</button>
+                <button id="form-delete-session" class="btn-danger">Eliminar</button>
+            </div>
         </div>
     </div>
-    <div id="promotionModal" class="promotion-modal hidden">
-        <div class="promotion-dialog">
-            <h2>Promocion</h2>
-            <p>Elige la pieza para coronar el peon.</p>
-            <div id="promotionOptions" class="promotion-options"></div>
+
+    <div id="dialog-load-template" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Cargar plantilla</h3>
+
+            <div class="form-group">
+                <label for="select-template-period">Semestre</label>
+                <select id="select-template-period">
+                    <option value="A">Semestre impar</option>
+                    <option value="B">Semestre par</option>
+                </select>
+                <small>Semestre impar carga <code>semestre_A.json</code> y semestre par carga <code>semestre_B.json</code>.</small>
+            </div>
+
+            <div class="modal-actions">
+                <button id="btn-cancel-load-template">Cancelar</button>
+                <button id="btn-confirm-load-template" class="btn-primary">Cargar</button>
+            </div>
         </div>
     </div>
-    <script src="script.js"></script>
-    <script src="select_column.js"></script>
+
+    <script src="core/models.js"></script>
+    <script src="core/persistence.js"></script>
+    <script src="core/rules.js"></script>
+    <script src="core/group-service.js"></script>
+    <script src="core/session-service.js"></script>
+    <script src="core/scheduler.js"></script>
+    <script src="core/classroom-service.js"></script>
+    <script src="core/report-service.js"></script>
+    <script src="ui/dialogs.js"></script>
+    <script src="ui/views.js"></script>
+    <script src="ui/group-view.js"></script>
+    <script src="ui/academy-view.js"></script>
+    <script src="ui/teacher-view.js"></script>
+    <script src="ui/aula-view.js"></script>
+    <script src="ui/schedule-editor.js"></script>
+    <script src="data/template-bundles.js"></script>
+    <script src="ui/app.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planeador de Horario Estudiantil</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="student-styles.css">
+</head>
+
+<body>
+    <div class="container student-layout">
+        <aside class="sidebar student-sidebar">
+            <div class="sidebar-brand">
+                <h1>Planeador Estudiantil</h1>
+                <p>Combina materias y encuentra el mejor horario posible.</p>
+            </div>
+
+            <section class="menu-section is-open">
+                <button class="menu-toggle" type="button" aria-expanded="true">
+                    Datos
+                </button>
+                <div class="menu-panel" style="display:block;">
+                    <ul class="menu-list">
+                        <li><button id="student-btn-load-demo" class="menu-item">Cargar semestre B</button></li>
+                        <li><button id="student-btn-import" class="menu-item">Importar JSON</button></li>
+                    </ul>
+                    <input id="student-file-input" type="file" accept="application/json,.json" style="display:none" />
+                    <div id="student-dataset-info" class="student-note">Sin datos cargados.</div>
+                </div>
+            </section>
+
+            <section class="menu-section is-open">
+                <button class="menu-toggle" type="button" aria-expanded="true">
+                    Materias
+                </button>
+                <div class="menu-panel" style="display:block;">
+                    <input id="student-subject-filter" type="text" placeholder="Filtrar materias..." />
+                    <div id="student-subject-list" class="student-subject-list"></div>
+                </div>
+            </section>
+
+            <section class="menu-section is-open">
+                <button class="menu-toggle" type="button" aria-expanded="true">
+                    Preferencias
+                </button>
+                <div class="menu-panel" style="display:block;">
+                    <div class="student-preferences">
+                        <label for="student-target-hours">Horas por dia</label>
+                        <input id="student-target-hours" data-student-preference type="number" min="1" max="12" step="0.5" value="8" />
+
+                        <label for="student-min-start">No antes de</label>
+                        <select id="student-min-start" data-student-preference>
+                            <option value="">Sin limite</option>
+                        </select>
+
+                        <label for="student-max-end">No despues de</label>
+                        <select id="student-max-end" data-student-preference>
+                            <option value="">Sin limite</option>
+                        </select>
+
+                        <label for="student-preferred-turno">Turno preferido</label>
+                        <select id="student-preferred-turno" data-student-preference>
+                            <option value="any">Cualquiera</option>
+                            <option value="matutino">Matutino</option>
+                            <option value="vespertino">Vespertino</option>
+                        </select>
+
+                        <div class="student-preference-block">
+                            <span>Dias a evitar</span>
+                            <div class="student-day-toggles">
+                                <label><input data-student-preference data-student-avoid-day type="checkbox" value="0"> Lu</label>
+                                <label><input data-student-preference data-student-avoid-day type="checkbox" value="1"> Ma</label>
+                                <label><input data-student-preference data-student-avoid-day type="checkbox" value="2"> Mi</label>
+                                <label><input data-student-preference data-student-avoid-day type="checkbox" value="3"> Ju</label>
+                                <label><input data-student-preference data-student-avoid-day type="checkbox" value="4"> Vi</label>
+                            </div>
+                        </div>
+
+                        <div class="student-preference-block">
+                            <label for="student-weight-daily-load">Prioridad carga diaria</label>
+                            <input id="student-weight-daily-load" data-student-preference type="range" min="0" max="5" step="1" value="3" />
+                            <label for="student-weight-gaps">Prioridad huecos</label>
+                            <input id="student-weight-gaps" data-student-preference type="range" min="0" max="5" step="1" value="3" />
+                        </div>
+                    </div>
+                    <div id="student-preference-summary" class="student-note"></div>
+                </div>
+            </section>
+
+            <section class="menu-section is-open">
+                <button class="menu-toggle" type="button" aria-expanded="true">
+                    Acciones
+                </button>
+                <div class="menu-panel" style="display:block;">
+                    <div class="student-actions">
+                        <label for="student-result-limit">Resultados</label>
+                        <select id="student-result-limit">
+                            <option value="3">Top 3</option>
+                            <option value="5" selected>Top 5</option>
+                            <option value="10">Top 10</option>
+                        </select>
+                        <button id="student-btn-build" class="btn-primary">Armar horario</button>
+                    </div>
+                    <div id="student-build-summary" class="student-note"></div>
+                </div>
+            </section>
+        </aside>
+
+        <main class="content student-content">
+            <section class="panel">
+                <h2>Materias seleccionadas</h2>
+                <div id="student-selection-panel" class="student-selection-panel">
+                    <small>Selecciona materias para ver sus grupos disponibles.</small>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Resultados</h2>
+                <div id="student-results" class="student-results">
+                    <small>Cuando cargues datos y elijas materias, aqui apareceran las mejores combinaciones.</small>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="core/models.js"></script>
+    <script src="data/template-bundles.js"></script>
+    <script src="ui/student-preferences.js"></script>
+    <script src="ui/student-app.js"></script>
+</body>
+
+</html>

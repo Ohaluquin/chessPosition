@@ -1,0 +1,106 @@
+/*
+ * Estilos exclusivos del planeador estudiantil.
+ * Las mejoras visuales nuevas deben vivir aqui para no tocar el generador principal.
+ */
+
+.student-preferences {
+  display: grid;
+  gap: 8px;
+  padding: 0 6px 6px;
+}
+
+.student-preferences label,
+.student-preference-block span {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.student-preference-block {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.student-day-toggles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.student-day-toggles label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-color);
+}
+
+.student-day-toggles input {
+  width: auto;
+  margin: 0;
+}
+
+.student-subject-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -2px 0 10px;
+}
+
+.student-subject-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.student-subject-controls select {
+  min-width: 150px;
+}
+
+.student-score-breakdown {
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.student-score-breakdown summary {
+  cursor: pointer;
+  padding: 8px 10px;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.student-score-breakdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.student-score-breakdown td {
+  border-top: 1px solid var(--border-color);
+  padding: 7px 10px;
+  font-size: 0.84rem;
+}
+
+.student-score-breakdown td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.student-score-breakdown .is-positive {
+  color: #166534;
+}
+
+.student-score-breakdown .is-negative {
+  color: #991b1b;
+}

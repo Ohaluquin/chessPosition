@@ -1,0 +1,145 @@
+.app-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.menu {
+  margin-right: 20px;
+}
+
+.board {
+  width: 50%;
+  height: 50%;
+  margin: 10px auto;
+}
+
+.menu_option {
+  padding: 25px;
+}
+
+.movimientos {
+  min-width: 30rem;
+  padding: 10px;
+}
+
+#fenInput {
+  width: 25rem;
+}
+
+.current-move {
+  font-weight: bold;
+  color: red;
+}
+
+.status-panel {
+  padding-top: 0;
+}
+
+.status-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+#statusText {
+  margin: 0;
+  line-height: 1.5;
+}
+
+#move-list a {
+  color: #143d2a;
+  text-decoration: none;
+  margin-right: 6px;
+}
+
+#move-list a:hover {
+  text-decoration: underline;
+}
+
+.promotion-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.promotion-modal.hidden {
+  display: none;
+}
+
+.promotion-dialog {
+  background: #fffaf3;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.promotion-options {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.promotion-option {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.promotion-option:hover {
+  background: #f2f8f3;
+}
+
+.promotion-option img {
+  width: 48px;
+  height: 48px;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .part {
+    width: 100%;
+  }
+
+  .left,
+  .right {
+    display: none;
+  }
+}
+
+@media only screen and (min-width: 768px) {
+  .nav {
+    display: none;
+  }
+}
+
+.key {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.key:hover {
+  background-color: #ea8282;
+}
+
+.key:active {
+  background-color: #de1414;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+}

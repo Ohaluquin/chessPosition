@@ -1,0 +1,2087 @@
+﻿{
+    "meta":  {
+                 "version":  4,
+                 "nombre":  "Plantilla Semestre A",
+                 "periodo":  "impar",
+                 "fuente":  "derivada de semestre_B_v4.json",
+                 "notas":  [
+                               "IDs de profesores se normalizaron a t###; el id anterior queda en profesores[].legacy.id.",
+                               "academiaId ahora es slug (ej. \u0027computacion\u0027) en lugar de indices numericos.",
+                               "turno del profesor ahora es explicito (\u0027matutino\u0027|\u0027vespertino\u0027).",
+                               "groupSpecs se conserva como legacy porque usa indices del TXT (lista de 45) que no coincide 1:1 con asignaturas actuales.",
+                               "asignaturas: horasPorSemana renombrado a sesionesPorSemana (sesiones/semana).",
+                               "asignaturas: tipoHoraEstudio se expresa como estudio.mode (string) y se conserva legacy.tipoHoraEstudio.",
+                               "grupos: planAsignaturas se infiere desde legacyGroupSpecs usando indices del TXT y se expresa con ids de asignatura (strings).",
+                               "asignaturas: se agregan Optativa 1 y Optativa 2 si faltaban."
+                           ]
+             },
+    "config":  {
+                   "dias":  [
+                                "Lunes",
+                                "Martes",
+                                "MiÃ©rcoles",
+                                "Jueves",
+                                "Viernes"
+                            ],
+                   "segmentoMin":  30,
+                   "horario":  {
+                                   "inicio":  "08:00",
+                                   "fin":  "20:00"
+                               },
+                   "turnos":  {
+                                  "grupo":  {
+                                                "matutino":  {
+                                                                 "inicio":  "08:00",
+                                                                 "fin":  "14:00"
+                                                             },
+                                                "vespertino":  {
+                                                                   "inicio":  "14:00",
+                                                                   "fin":  "20:00"
+                                                               }
+                                            },
+                                  "profesor":  {
+                                                   "matutino":  {
+                                                                    "inicio":  "08:00",
+                                                                    "fin":  "16:00"
+                                                                },
+                                                   "vespertino":  {
+                                                                      "inicio":  "12:00",
+                                                                      "fin":  "20:00"
+                                                                  }
+                                               }
+                              }
+               },
+    "reglasFijas":  [
+                        {
+                            "id":  "junta_profesores_miercoles",
+                            "scope":  "PROFESOR",
+                            "dia":  "miercoles",
+                            "inicio":  "13:00",
+                            "fin":  "15:00",
+                            "motivo":  "Junta"
+                        },
+                        {
+                            "id":  "tutoria_matutino_jueves",
+                            "scope":  "GRUPO",
+                            "dia":  "jueves",
+                            "inicio":  "11:30",
+                            "fin":  "12:30",
+                            "filters":  {
+                                            "turno":  "matutino"
+                                        },
+                            "motivo":  "Tutoria"
+                        },
+                        {
+                            "id":  "tutoria_vespertino_jueves",
+                            "scope":  "GRUPO",
+                            "dia":  "jueves",
+                            "inicio":  "17:00",
+                            "fin":  "18:00",
+                            "filters":  {
+                                            "turno":  "vespertino"
+                                        },
+                            "motivo":  "Tutoria"
+                        },
+                        {
+                            "id":  "artes_sin_salon_jueves",
+                            "scope":  "ACADEMIA",
+                            "dia":  "jueves",
+                            "inicio":  "08:00",
+                            "fin":  "20:00",
+                            "filters":  {
+                                            "academiaId":  "artes"
+                                        },
+                            "motivo":  "Sin salon"
+                        },
+                        {
+                            "id":  "musica_sin_salon_jueves",
+                            "scope":  "ACADEMIA",
+                            "dia":  "jueves",
+                            "inicio":  "08:00",
+                            "fin":  "20:00",
+                            "filters":  {
+                                            "academiaId":  "musica"
+                                        },
+                            "motivo":  "Sin salon"
+                        }
+                    ],
+    "franjasOptativas":  [
+                             {
+                                 "id":  "opt_5_f1",
+                                 "nombre":  "Optativas 5to - Franja 1",
+                                 "periodo":  "impar",
+                                 "gradoObjetivo":  5,
+                                 "inicio":  "08:00",
+                                 "duracionMin":  90,
+                                 "dias":  [
+                                              "lunes",
+                                              "miercoles"
+                                          ],
+                                 "motivo":  "Optativa 5to"
+                             },
+                             {
+                                 "id":  "opt_5_f2",
+                                 "nombre":  "Optativas 5to - Franja 2",
+                                 "periodo":  "impar",
+                                 "gradoObjetivo":  5,
+                                 "inicio":  "12:30",
+                                 "duracionMin":  90,
+                                 "dias":  [
+                                              "martes",
+                                              "viernes"
+                                          ],
+                                 "motivo":  "Optativa 5to"
+                             },
+                             {
+                                 "id":  "opt_5_f3",
+                                 "nombre":  "Optativas 5to - Franja 3",
+                                 "periodo":  "impar",
+                                 "gradoObjetivo":  5,
+                                 "inicio":  "14:00",
+                                 "duracionMin":  90,
+                                 "dias":  [
+                                              "lunes",
+                                              "jueves"
+                                          ],
+                                 "motivo":  "Optativa 5to"
+                             }
+                         ],
+    "academias":  [
+                      {
+                          "id":  "artes",
+                          "nombre":  "Artes",
+                          "limiteSalon":  1,
+                          "profesores":  [
+                                             "t001",
+                                             "t002",
+                                             "t003"
+                                         ]
+                      },
+                      {
+                          "id":  "biologia",
+                          "nombre":  "Biologia",
+                          "limiteSalon":  3,
+                          "profesores":  [
+                                             "t004",
+                                             "t005",
+                                             "t006"
+                                         ]
+                      },
+                      {
+                          "id":  "computacion",
+                          "nombre":  "Computacion",
+                          "limiteSalon":  1,
+                          "profesores":  [
+                                             "t007",
+                                             "t008",
+                                             "t009",
+                                             "t010"
+                                         ]
+                      },
+                      {
+                          "id":  "filosofia",
+                          "nombre":  "Filosofia",
+                          "limiteSalon":  8,
+                          "profesores":  [
+                                             "t011",
+                                             "t012",
+                                             "t013",
+                                             "t014",
+                                             "t015",
+                                             "t016",
+                                             "t017",
+                                             "t018"
+                                         ]
+                      },
+                      {
+                          "id":  "fisica",
+                          "nombre":  "Fisica",
+                          "limiteSalon":  6,
+                          "profesores":  [
+                                             "t019",
+                                             "t020",
+                                             "t021",
+                                             "t022",
+                                             "t023",
+                                             "t024"
+                                         ]
+                      },
+                      {
+                          "id":  "historia",
+                          "nombre":  "Historia",
+                          "limiteSalon":  6,
+                          "profesores":  [
+                                             "t025",
+                                             "t026",
+                                             "t027",
+                                             "t028",
+                                             "t029",
+                                             "t030"
+                                         ]
+                      },
+                      {
+                          "id":  "ingles",
+                          "nombre":  "Ingles",
+                          "limiteSalon":  3,
+                          "profesores":  [
+                                             "t031",
+                                             "t032",
+                                             "t033"
+                                         ]
+                      },
+                      {
+                          "id":  "literatura",
+                          "nombre":  "Literatura",
+                          "limiteSalon":  8,
+                          "profesores":  [
+                                             "t034",
+                                             "t035",
+                                             "t036",
+                                             "t037",
+                                             "t038",
+                                             "t039",
+                                             "t040",
+                                             "t041"
+                                         ]
+                      },
+                      {
+                          "id":  "matematicas",
+                          "nombre":  "Matematicas",
+                          "limiteSalon":  9,
+                          "profesores":  [
+                                             "t042",
+                                             "t043",
+                                             "t044",
+                                             "t045",
+                                             "t046",
+                                             "t047",
+                                             "t048",
+                                             "t049",
+                                             "t050"
+                                         ]
+                      },
+                      {
+                          "id":  "musica",
+                          "nombre":  "Musica",
+                          "limiteSalon":  1,
+                          "profesores":  [
+                                             "t051",
+                                             "t052",
+                                             "t053"
+                                         ]
+                      },
+                      {
+                          "id":  "poe",
+                          "nombre":  "POE",
+                          "limiteSalon":  6,
+                          "profesores":  [
+                                             "t054",
+                                             "t055",
+                                             "t056",
+                                             "t057",
+                                             "t058",
+                                             "t059"
+                                         ]
+                      },
+                      {
+                          "id":  "quimica",
+                          "nombre":  "Quimica",
+                          "limiteSalon":  4,
+                          "profesores":  [
+                                             "t060",
+                                             "t061",
+                                             "t062",
+                                             "t063"
+                                         ]
+                      }
+                  ],
+    "profesores":  [
+                       {
+                           "id":  "t001",
+                           "nombre":  "Carmen",
+                           "academiaId":  "artes",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t002",
+                           "nombre":  "Sofia",
+                           "academiaId":  "artes",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t003",
+                           "nombre":  "Pedro",
+                           "academiaId":  "artes",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t004",
+                           "nombre":  "Selene",
+                           "academiaId":  "biologia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t005",
+                           "nombre":  "Claudia",
+                           "academiaId":  "biologia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t006",
+                           "nombre":  "Antonio",
+                           "academiaId":  "biologia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t007",
+                           "nombre":  "Marisol",
+                           "academiaId":  "computacion",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t008",
+                           "nombre":  "Julio",
+                           "academiaId":  "computacion",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t009",
+                           "nombre":  "MarÃ­o",
+                           "academiaId":  "computacion",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t010",
+                           "nombre":  "Gustavo",
+                           "academiaId":  "computacion",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t011",
+                           "nombre":  "Enrique",
+                           "academiaId":  "filosofia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t012",
+                           "nombre":  "Brenda",
+                           "academiaId":  "filosofia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t013",
+                           "nombre":  "Moises",
+                           "academiaId":  "filosofia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t014",
+                           "nombre":  "Gustavo",
+                           "academiaId":  "filosofia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t015",
+                           "nombre":  "JosÃ© Luis GarcÃ­a",
+                           "academiaId":  "filosofia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t016",
+                           "nombre":  "EstefanÃ­a",
+                           "academiaId":  "filosofia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t017",
+                           "nombre":  "Jose Luis SolÃ­s",
+                           "academiaId":  "filosofia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t018",
+                           "nombre":  "Nuevo",
+                           "academiaId":  "filosofia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t019",
+                           "nombre":  "Sergio",
+                           "academiaId":  "fisica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t020",
+                           "nombre":  "Mitzi",
+                           "academiaId":  "fisica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t021",
+                           "nombre":  "Lino",
+                           "academiaId":  "fisica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t022",
+                           "nombre":  "Mauricio",
+                           "academiaId":  "fisica",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t023",
+                           "nombre":  "Victor",
+                           "academiaId":  "fisica",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t024",
+                           "nombre":  "Raymundo",
+                           "academiaId":  "fisica",
+                           "turno":  "vespertino",
+                           "activo":  false,
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t025",
+                           "nombre":  "Clara",
+                           "academiaId":  "historia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t026",
+                           "nombre":  "Por asignar",
+                           "academiaId":  "historia",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t027",
+                           "nombre":  "Paula",
+                           "academiaId":  "historia",
+                           "turno":  "matutino",
+                           "activo":  false,
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t028",
+                           "nombre":  "Jesus",
+                           "academiaId":  "historia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t029",
+                           "nombre":  "Francisco",
+                           "academiaId":  "historia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t030",
+                           "nombre":  "Bernardino",
+                           "academiaId":  "historia",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t031",
+                           "nombre":  "Daniel",
+                           "academiaId":  "ingles",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t032",
+                           "nombre":  "Christian",
+                           "academiaId":  "ingles",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t033",
+                           "nombre":  "Yusin",
+                           "academiaId":  "ingles",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t034",
+                           "nombre":  "Kharla",
+                           "academiaId":  "literatura",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t035",
+                           "nombre":  "Carmen",
+                           "academiaId":  "literatura",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t036",
+                           "nombre":  "Paula",
+                           "academiaId":  "literatura",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t037",
+                           "nombre":  "Roberto",
+                           "academiaId":  "literatura",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t038",
+                           "nombre":  "Lucia",
+                           "academiaId":  "literatura",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t039",
+                           "nombre":  "Marco",
+                           "academiaId":  "literatura",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t040",
+                           "nombre":  "Juan Pablo",
+                           "academiaId":  "literatura",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t041",
+                           "nombre":  "Octavio",
+                           "academiaId":  "literatura",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t042",
+                           "nombre":  "Oscar",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t043",
+                           "nombre":  "Fernando",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t044",
+                           "nombre":  "Jose Luis",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t045",
+                           "nombre":  "Camilo",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t046",
+                           "nombre":  "Marcos",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t047",
+                           "nombre":  "Javier",
+                           "academiaId":  "matematicas",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t048",
+                           "nombre":  "Amador",
+                           "academiaId":  "matematicas",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t049",
+                           "nombre":  "Lilia",
+                           "academiaId":  "matematicas",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t050",
+                           "nombre":  "Por asignar",
+                           "academiaId":  "matematicas",
+                           "turno":  "vespertino",
+                           "activo":  false,
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t051",
+                           "nombre":  "Yazmin",
+                           "academiaId":  "musica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t052",
+                           "nombre":  "RenÃ©",
+                           "academiaId":  "musica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t053",
+                           "nombre":  "Victor",
+                           "academiaId":  "musica",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t054",
+                           "nombre":  "RocÃ­o Ornelas",
+                           "academiaId":  "poe",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t055",
+                           "nombre":  "RocÃ­o LÃ³pez",
+                           "academiaId":  "poe",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t056",
+                           "nombre":  "Violeta",
+                           "academiaId":  "poe",
+                           "turno":  "matutino",
+                           "activo":  false,
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t057",
+                           "nombre":  "Onecimo",
+                           "academiaId":  "poe",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t058",
+                           "nombre":  "Marcela",
+                           "academiaId":  "poe",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t059",
+                           "nombre":  "Cristina",
+                           "academiaId":  "poe",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t060",
+                           "nombre":  "Magdalena",
+                           "academiaId":  "quimica",
+                           "turno":  "matutino",
+                           "activo":  false,
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t061",
+                           "nombre":  "Virginia",
+                           "academiaId":  "quimica",
+                           "turno":  "matutino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t062",
+                           "nombre":  "Ernesto",
+                           "academiaId":  "quimica",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       },
+                       {
+                           "id":  "t063",
+                           "nombre":  "Diana",
+                           "academiaId":  "quimica",
+                           "turno":  "vespertino",
+                           "disponibilidad":  {
+
+                                              },
+                           "gruposAsignados":  [
+
+                                               ]
+                       }
+                   ],
+    "asignaturas":  [
+                        {
+                            "id":  "artes_i",
+                            "nombre":  "Artes I",
+                            "academiaId":  "artes",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "artes_ii",
+                            "nombre":  "Artes II",
+                            "academiaId":  "artes",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "artes_opt",
+                            "nombre":  "Artes Opt",
+                            "academiaId":  "artes",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "biologia_i",
+                            "nombre":  "Biologia I",
+                            "academiaId":  "biologia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "biologia_ii",
+                            "nombre":  "Biologia II",
+                            "academiaId":  "biologia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "biologia_opt",
+                            "nombre":  "Biologia Opt",
+                            "academiaId":  "biologia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "computacion_i",
+                            "nombre":  "Computacion I",
+                            "academiaId":  "computacion",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "computacion_ii",
+                            "nombre":  "Computacion II",
+                            "academiaId":  "computacion",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "filosofia_i",
+                            "nombre":  "Filosofia I",
+                            "academiaId":  "filosofia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  4,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "filosofia_ii",
+                            "nombre":  "Filosofia II",
+                            "academiaId":  "filosofia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "filosofia_iii",
+                            "nombre":  "Filosofia III",
+                            "academiaId":  "filosofia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "filosofia_iv",
+                            "nombre":  "Filosofia IV",
+                            "academiaId":  "filosofia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "filosofia_opt",
+                            "nombre":  "Filosofia Opt",
+                            "academiaId":  "filosofia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "fisica_i",
+                            "nombre":  "Fisica I",
+                            "academiaId":  "fisica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "fisica_ii",
+                            "nombre":  "Fisica II",
+                            "academiaId":  "fisica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "fisica_opt",
+                            "nombre":  "Fisica Opt",
+                            "academiaId":  "fisica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "historia_i",
+                            "nombre":  "Historia I",
+                            "academiaId":  "historia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "historia_ii",
+                            "nombre":  "Historia II",
+                            "academiaId":  "historia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "historia_iii",
+                            "nombre":  "Historia III",
+                            "academiaId":  "historia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "historia_iv",
+                            "nombre":  "Historia IV",
+                            "academiaId":  "historia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "historia_opt",
+                            "nombre":  "Historia Opt",
+                            "academiaId":  "historia",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "ingles_i",
+                            "nombre":  "Ingles I",
+                            "academiaId":  "ingles",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "ingles_ii",
+                            "nombre":  "Ingles II",
+                            "academiaId":  "ingles",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "ingles_iii",
+                            "nombre":  "Ingles III",
+                            "academiaId":  "ingles",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "literatura_i",
+                            "nombre":  "Literatura I",
+                            "academiaId":  "literatura",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  4,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "literatura_ii",
+                            "nombre":  "Literatura II",
+                            "academiaId":  "literatura",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "literatura_iii",
+                            "nombre":  "Literatura III",
+                            "academiaId":  "literatura",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "literatura_iv",
+                            "nombre":  "Literatura IV",
+                            "academiaId":  "literatura",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "literatura_opt",
+                            "nombre":  "Literatura Opt",
+                            "academiaId":  "literatura",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_i",
+                            "nombre":  "Matematicas I",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_ii",
+                            "nombre":  "Matematicas II",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_iii",
+                            "nombre":  "Matematicas III",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_iv",
+                            "nombre":  "Matematicas IV",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_v",
+                            "nombre":  "Matematicas V",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "matematicas_opt",
+                            "nombre":  "Matematicas Opt",
+                            "academiaId":  "matematicas",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "musica_i",
+                            "nombre":  "Musica I",
+                            "academiaId":  "musica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "musica_ii",
+                            "nombre":  "Musica II",
+                            "academiaId":  "musica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "musica_opt",
+                            "nombre":  "Musica Opt",
+                            "academiaId":  "musica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "poe_i",
+                            "nombre":  "POE I",
+                            "academiaId":  "poe",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "poe_ii",
+                            "nombre":  "POE II",
+                            "academiaId":  "poe",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        },
+                        {
+                            "id":  "quimica_i",
+                            "nombre":  "Quimica I",
+                            "academiaId":  "quimica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "quimica_ii",
+                            "nombre":  "Quimica II",
+                            "academiaId":  "quimica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "sesion_separate"
+                                        },
+                            "requiereLaboratorio":  true
+                        },
+                        {
+                            "id":  "quimica_opt",
+                            "nombre":  "Quimica Opt",
+                            "academiaId":  "quimica",
+                            "sesionesPorSemana":  2,
+                            "duracionSegmentos":  3,
+                            "estudio":  {
+                                            "mode":  "none"
+                                        },
+                            "requiereLaboratorio":  false
+                        }
+                    ],
+    "grupos":  [
+                   {
+                       "id":  "g101",
+                       "nombre":  "101",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g102",
+                       "nombre":  "102",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g103",
+                       "nombre":  "103",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g104",
+                       "nombre":  "104",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g105",
+                       "nombre":  "105",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g106",
+                       "nombre":  "106",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g107",
+                       "nombre":  "107",
+                       "turno":  "matutino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g111",
+                       "nombre":  "111",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g112",
+                       "nombre":  "112",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g113",
+                       "nombre":  "113",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g114",
+                       "nombre":  "114",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g115",
+                       "nombre":  "115",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g116",
+                       "nombre":  "116",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g117",
+                       "nombre":  "117",
+                       "turno":  "vespertino",
+                       "grado":  1,
+                       "planAsignaturas":  [
+                                               "computacion_i",
+                                               "filosofia_i",
+                                               "fisica_i",
+                                               "literatura_i",
+                                               "matematicas_i",
+                                               "poe_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g201",
+                       "nombre":  "201",
+                       "turno":  "matutino",
+                       "grado":  2,
+                       "planAsignaturas":  [
+                                               "computacion_ii",
+                                               "filosofia_ii",
+                                               "fisica_ii",
+                                               "literatura_ii",
+                                               "matematicas_ii",
+                                               "poe_ii"
+                                           ]
+                   },
+                   {
+                       "id":  "g211",
+                       "nombre":  "211",
+                       "turno":  "vespertino",
+                       "grado":  2,
+                       "planAsignaturas":  [
+                                               "computacion_ii",
+                                               "filosofia_ii",
+                                               "fisica_ii",
+                                               "literatura_ii",
+                                               "matematicas_ii",
+                                               "poe_ii"
+                                           ]
+                   },
+                   {
+                       "id":  "g301",
+                       "nombre":  "301",
+                       "turno":  "matutino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g302",
+                       "nombre":  "302",
+                       "turno":  "matutino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g303",
+                       "nombre":  "303",
+                       "turno":  "matutino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g304",
+                       "nombre":  "304",
+                       "turno":  "matutino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g311",
+                       "nombre":  "311",
+                       "turno":  "vespertino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g312",
+                       "nombre":  "312",
+                       "turno":  "vespertino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g313",
+                       "nombre":  "313",
+                       "turno":  "vespertino",
+                       "grado":  3,
+                       "planAsignaturas":  [
+                                               "artes_i",
+                                               "filosofia_iii",
+                                               "historia_i",
+                                               "literatura_iii",
+                                               "matematicas_iii",
+                                               "quimica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g401",
+                       "nombre":  "401",
+                       "turno":  "matutino",
+                       "grado":  4,
+                       "planAsignaturas":  [
+                                               "artes_ii",
+                                               "filosofia_iv",
+                                               "historia_ii",
+                                               "literatura_iv",
+                                               "matematicas_iv",
+                                               "quimica_ii",
+                                               "ingles_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g411",
+                       "nombre":  "411",
+                       "turno":  "vespertino",
+                       "grado":  4,
+                       "planAsignaturas":  [
+                                               "artes_ii",
+                                               "filosofia_iv",
+                                               "historia_ii",
+                                               "literatura_iv",
+                                               "matematicas_iv",
+                                               "quimica_ii",
+                                               "ingles_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g501",
+                       "nombre":  "501",
+                       "turno":  "matutino",
+                       "grado":  5,
+                       "planAsignaturas":  [
+                                               "biologia_i",
+                                               "historia_iii",
+                                               "ingles_ii",
+                                               "matematicas_v",
+                                               "musica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g502",
+                       "nombre":  "502",
+                       "turno":  "matutino",
+                       "grado":  5,
+                       "planAsignaturas":  [
+                                               "biologia_i",
+                                               "historia_iii",
+                                               "ingles_ii",
+                                               "matematicas_v",
+                                               "musica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g503",
+                       "nombre":  "503",
+                       "turno":  "matutino",
+                       "grado":  5,
+                       "planAsignaturas":  [
+                                               "biologia_i",
+                                               "historia_iii",
+                                               "ingles_ii",
+                                               "matematicas_v",
+                                               "musica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g511",
+                       "nombre":  "511",
+                       "turno":  "vespertino",
+                       "grado":  5,
+                       "planAsignaturas":  [
+                                               "biologia_i",
+                                               "historia_iii",
+                                               "ingles_ii",
+                                               "matematicas_v",
+                                               "musica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g512",
+                       "nombre":  "512",
+                       "turno":  "vespertino",
+                       "grado":  5,
+                       "planAsignaturas":  [
+                                               "biologia_i",
+                                               "historia_iii",
+                                               "ingles_ii",
+                                               "matematicas_v",
+                                               "musica_i"
+                                           ]
+                   },
+                   {
+                       "id":  "g601",
+                       "nombre":  "601",
+                       "turno":  "matutino",
+                       "grado":  6,
+                       "planAsignaturas":  [
+                                               "biologia_ii",
+                                               "historia_iv",
+                                               "ingles_iii",
+                                               "musica_ii"
+                                           ]
+                   },
+                   {
+                       "id":  "g611",
+                       "nombre":  "611",
+                       "turno":  "vespertino",
+                       "grado":  6,
+                       "planAsignaturas":  [
+                                               "biologia_ii",
+                                               "historia_iv",
+                                               "ingles_iii",
+                                               "musica_ii"
+                                           ]
+                   }
+               ],
+    "aulas":  [
+                  {
+                      "id":  "a1",
+                      "nombre":  "Aula 1",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a2",
+                      "nombre":  "Aula 2",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a3",
+                      "nombre":  "Aula 3",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a4",
+                      "nombre":  "Aula 4",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a5",
+                      "nombre":  "Aula 5",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a6",
+                      "nombre":  "Aula 6",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a7",
+                      "nombre":  "Aula 7",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a8",
+                      "nombre":  "Aula 8",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a9",
+                      "nombre":  "Aula 9",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a10",
+                      "nombre":  "Aula 10",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a11",
+                      "nombre":  "Aula 11",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a12",
+                      "nombre":  "Aula 12",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a13",
+                      "nombre":  "Aula 13",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a14",
+                      "nombre":  "Aula 14",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "a15",
+                      "nombre":  "Aula 15",
+                      "tipo":  "normal"
+                  },
+                  {
+                      "id":  "lab1",
+                      "nombre":  "LAB 1",
+                      "tipo":  "laboratorio"
+                  },
+                  {
+                      "id":  "lab2",
+                      "nombre":  "LAB 2",
+                      "tipo":  "laboratorio"
+                  },
+                  {
+                      "id":  "computo",
+                      "nombre":  "Computo",
+                      "tipo":  "especial"
+                  },
+                  {
+                      "id":  "artes",
+                      "nombre":  "Artes",
+                      "tipo":  "especial"
+                  },
+                  {
+                      "id":  "musica",
+                      "nombre":  "Musica",
+                      "tipo":  "especial"
+                  }
+              ],
+    "sesiones":  [
+
+                 ],
+    "bloqueos":  [
+
+                 ]
+}
