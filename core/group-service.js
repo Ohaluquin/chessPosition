@@ -13,6 +13,80 @@ const GroupService = {
     return grupo.estructuraPorAsignatura;
   },
 
+  ensureOptativeSlotMap(grupo) {
+    if (
+      !grupo.franjasOptativasPorAsignatura ||
+      typeof grupo.franjasOptativasPorAsignatura !== "object"
+    ) {
+      grupo.franjasOptativasPorAsignatura = {};
+    }
+    return grupo.franjasOptativasPorAsignatura;
+  },
+
+  isOptativeGroup(grupo) {
+    return grupo?.tipo === "optativa";
+  },
+
+  isOptativeSubject(asignatura) {
+    const value = `${asignatura?.id || ""} ${asignatura?.nombre || ""}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return value.includes("opt");
+  },
+
+  getOptativeSlotIds(grupo, asignaturaId) {
+    const raw = this.ensureOptativeSlotMap(grupo)[asignaturaId];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    return raw ? [raw] : [];
+  },
+
+  setOptativeSlotIds(grupo, asignaturaId, slotIds) {
+    this.ensureOptativeSlotMap(grupo)[asignaturaId] = [
+      ...new Set((Array.isArray(slotIds) ? slotIds : [slotIds]).filter(Boolean)),
+    ];
+  },
+
+  getAvailableOptativeSlots(app, grupo) {
+    const period = String(app.data?.meta?.periodo || "").toLowerCase();
+    const groupWindow =
+      grupo?.turno === "vespertino"
+        ? { inicio: "12:00", fin: "20:00" }
+        : { inicio: "08:00", fin: "16:00" };
+    const toMinutes = (value) => {
+      const [hour, minute] = String(value || "00:00").split(":").map(Number);
+      return hour * 60 + minute;
+    };
+
+    return (app.data?.franjasOptativas || []).filter((slot) => {
+      if (slot.activa === false) return false;
+      if (slot.periodo && period && String(slot.periodo).toLowerCase() !== period) {
+        return false;
+      }
+      if (slot.gradoObjetivo != null && Number(slot.gradoObjetivo) !== Number(grupo.grado)) {
+        return false;
+      }
+      if (slot.turno && slot.turno !== grupo.turno) return false;
+      const start = String(slot.inicio || "");
+      const end =
+        slot.fin ||
+        (() => {
+          const total = toMinutes(start) + Number(slot.duracionMin || 90);
+          return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+            total % 60,
+          ).padStart(2, "0")}`;
+        })();
+      return start >= groupWindow.inicio && end <= groupWindow.fin;
+    });
+  },
+
+  formatOptativeSlot(slot) {
+    const days = (slot?.dias || [])
+      .map((day) => String(day || "").slice(0, 3))
+      .join("/");
+    return `${slot?.nombre || slot?.id} - ${days} ${slot?.inicio || ""}`;
+  },
+
   getPlanAsignaturaIds(grupo) {
     const plan = Array.isArray(grupo?.planAsignaturas) ? grupo.planAsignaturas : [];
     return plan

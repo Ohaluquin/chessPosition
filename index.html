@@ -82,6 +82,11 @@
 
             <h3 id="sidebar-title">Grupos</h3>
 
+            <div id="group-list-actions" class="group-list-actions">
+                <button id="btn-group-new" class="btn-primary">Nuevo grupo</button>
+                <button id="btn-group-duplicate">Duplicar</button>
+            </div>
+
             <div id="grupos-list"></div>
 
             <div id="profesores-panel" style="display:none">
@@ -114,11 +119,40 @@
                                 <option value="vespertino">Vespertino</option>
                             </select>
                         </div>
+
+                        <div class="row editor-row">
+                            <label for="group-grade">Grado</label>
+                            <select id="group-grade" style="flex:1;">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+
+                        <div class="row editor-row">
+                            <label for="group-type">Tipo</label>
+                            <select id="group-type" style="flex:1;">
+                                <option value="regular">Regular</option>
+                                <option value="optativa">Optativas</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="group-editor-actions">
                         <button id="btn-group-save" class="btn-primary">Guardar Grupo</button>
+                        <button id="btn-group-cancel" style="display:none;">Cancelar</button>
                     </div>
+                </div>
+
+                <div class="group-plan-editor">
+                    <div>
+                        <h3>Plan de materias</h3>
+                        <small id="group-plan-help">Selecciona las materias que pertenecen al grupo.</small>
+                    </div>
+                    <div id="group-plan-options" class="group-plan-options"></div>
                 </div>
 
                 <div id="group-stats" class="group-stats"></div>

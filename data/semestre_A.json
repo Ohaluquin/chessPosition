@@ -19,7 +19,7 @@
                    "dias":  [
                                 "Lunes",
                                 "Martes",
-                                "MiÃ©rcoles",
+                                "Miércoles",
                                 "Jueves",
                                 "Viernes"
                             ],
@@ -394,7 +394,7 @@
                        },
                        {
                            "id":  "t009",
-                           "nombre":  "MarÃ­o",
+                           "nombre":  "Marío",
                            "academiaId":  "computacion",
                            "turno":  "vespertino",
                            "disponibilidad":  {
@@ -466,7 +466,7 @@
                        },
                        {
                            "id":  "t015",
-                           "nombre":  "JosÃ© Luis GarcÃ­a",
+                           "nombre":  "José Luis García",
                            "academiaId":  "filosofia",
                            "turno":  "vespertino",
                            "disponibilidad":  {
@@ -478,7 +478,7 @@
                        },
                        {
                            "id":  "t016",
-                           "nombre":  "EstefanÃ­a",
+                           "nombre":  "Estefanía",
                            "academiaId":  "filosofia",
                            "turno":  "vespertino",
                            "disponibilidad":  {
@@ -490,7 +490,7 @@
                        },
                        {
                            "id":  "t017",
-                           "nombre":  "Jose Luis SolÃ­s",
+                           "nombre":  "Jose Luis Solís",
                            "academiaId":  "filosofia",
                            "turno":  "vespertino",
                            "disponibilidad":  {
@@ -913,7 +913,7 @@
                        },
                        {
                            "id":  "t052",
-                           "nombre":  "RenÃ©",
+                           "nombre":  "René",
                            "academiaId":  "musica",
                            "turno":  "matutino",
                            "disponibilidad":  {
@@ -937,7 +937,7 @@
                        },
                        {
                            "id":  "t054",
-                           "nombre":  "RocÃ­o Ornelas",
+                           "nombre":  "Rocío Ornelas",
                            "academiaId":  "poe",
                            "turno":  "matutino",
                            "disponibilidad":  {
@@ -949,7 +949,7 @@
                        },
                        {
                            "id":  "t055",
-                           "nombre":  "RocÃ­o LÃ³pez",
+                           "nombre":  "Rocío López",
                            "academiaId":  "poe",
                            "turno":  "matutino",
                            "disponibilidad":  {

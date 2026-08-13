@@ -3,6 +3,94 @@
  */
 
 const Rules = {
+  normalizeText: (value) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase(),
+
+  getDayIndex: (value) => {
+    if (typeof value === "number") return value;
+    return {
+      lunes: 0,
+      martes: 1,
+      miercoles: 2,
+      jueves: 3,
+      viernes: 4,
+    }[Rules.normalizeText(value)];
+  },
+
+  getOptativeSlotIds: (grupo, asignaturaId) => {
+    const raw = grupo?.franjasOptativasPorAsignatura?.[asignaturaId];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    return raw ? [raw] : [];
+  },
+
+  getOptativeSlots: (data, grupo, asignaturaId) => {
+    const selectedIds = new Set(Rules.getOptativeSlotIds(grupo, asignaturaId));
+    const currentPeriod = Rules.normalizeText(data?.meta?.periodo);
+
+    return (data?.franjasOptativas || []).filter((slot) => {
+      if (!selectedIds.has(slot.id) || slot.activa === false) return false;
+      const slotPeriod = Rules.normalizeText(slot.periodo);
+      if (slotPeriod && currentPeriod && slotPeriod !== currentPeriod) return false;
+      if (slot.gradoObjetivo != null && Number(slot.gradoObjetivo) !== Number(grupo.grado)) {
+        return false;
+      }
+      if (slot.turno && slot.turno !== grupo.turno) return false;
+      return true;
+    });
+  },
+
+  validateOptativeWindow: (
+    data,
+    grupo,
+    asignaturaId,
+    dia,
+    hourRange,
+    hours,
+  ) => {
+    if (grupo?.tipo !== "optativa") return { valid: true };
+
+    const selectedIds = Rules.getOptativeSlotIds(grupo, asignaturaId);
+    if (selectedIds.length === 0) {
+      return {
+        valid: false,
+        error: "Asigna una franja optativa a esta materia antes de programarla.",
+      };
+    }
+
+    const start = hours?.[hourRange?.[0]];
+    const end = hours?.[(hourRange?.[hourRange.length - 1] ?? -1) + 1];
+    if (!start || !end) {
+      return { valid: false, error: "La sesion no cabe en la franja optativa." };
+    }
+
+    const matching = Rules.getOptativeSlots(data, grupo, asignaturaId).some((slot) => {
+      const slotDays = (slot.dias || []).map(Rules.getDayIndex);
+      if (!slotDays.includes(dia)) return false;
+      const slotStart = slot.inicio;
+      const slotEnd =
+        slot.fin ||
+        (() => {
+          const [hour, minute] = String(slot.inicio || "00:00").split(":").map(Number);
+          const total = hour * 60 + minute + Number(slot.duracionMin || 90);
+          return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+            total % 60,
+          ).padStart(2, "0")}`;
+        })();
+      return start >= slotStart && end <= slotEnd;
+    });
+
+    return matching
+      ? { valid: true }
+      : {
+          valid: false,
+          error: "Las materias optativas solo pueden programarse en su franja asignada.",
+        };
+  },
+
   getAcademiaRoomOptions: (data, academiaId) => {
     const academia = (data?.academias || []).find((item) => item.id === academiaId);
     return {

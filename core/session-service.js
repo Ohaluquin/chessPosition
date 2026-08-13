@@ -33,7 +33,7 @@ const SessionService = {
     return GroupService.getCompatibleProfesores(app, grupo, asignaturaId);
   },
 
-  getAllowedAulas(app, asignaturaId) {
+  getAllowedAulas(app, asignaturaId, tipoSesion = "clase") {
     const asignatura = app.data.asignaturas.find((item) => item.id === asignaturaId);
     if (!asignatura) return app.data.aulas.slice();
 
@@ -41,8 +41,15 @@ const SessionService = {
       return app.data.aulas.slice();
     }
 
-    const labs = app.data.aulas.filter((aula) => aula.tipo === "laboratorio");
-    return labs.length > 0 ? labs : app.data.aulas.slice();
+    if (tipoSesion === "laboratorio") {
+      const labs = app.data.aulas.filter((aula) => aula.tipo === "laboratorio");
+      return labs.length > 0 ? labs : app.data.aulas.slice();
+    }
+
+    const regularRooms = app.data.aulas.filter(
+      (aula) => aula.tipo !== "laboratorio",
+    );
+    return regularRooms.length > 0 ? regularRooms : app.data.aulas.slice();
   },
 
   hasSameSubjectOnDay(app, grupoId, asignaturaId, day) {
@@ -204,7 +211,11 @@ const SessionService = {
     }
 
     if (payload.aulaId) {
-      const allowedAulas = this.getAllowedAulas(app, payload.asignaturaId);
+      const allowedAulas = this.getAllowedAulas(
+        app,
+        payload.asignaturaId,
+        tipoSesion,
+      );
       if (!allowedAulas.some((item) => item.id === payload.aulaId)) {
         return {
           valid: false,
@@ -222,12 +233,23 @@ const SessionService = {
       };
     }
 
+    const optativeWindow = Rules.validateOptativeWindow(
+      app.data,
+      grupo,
+      payload.asignaturaId,
+      payload.day,
+      hourRange,
+      app.hours,
+    );
+    if (!optativeWindow.valid) return optativeWindow;
+
     const turnoWindow = this.getGroupTimeWindow(grupo);
 
-    const withinTurno = hourRange.every((hourIndex) => {
+    const withinTurno =
+      grupo.tipo === "optativa" || hourRange.every((hourIndex) => {
       const label = app.hours[hourIndex];
       return label >= turnoWindow.inicio && label < turnoWindow.fin;
-    });
+      });
 
     if (!withinTurno) {
       return {

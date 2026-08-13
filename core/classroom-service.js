@@ -1,22 +1,26 @@
 const ClassroomService = {
-  async autoAssign(app, onProgress = null) {
+  async autoAssign(app, onProgress = null, { replaceExisting = false } = {}) {
+    if (replaceExisting) {
+      app.horario.sesiones.forEach((sesion) => {
+        sesion.aulaId = null;
+      });
+    }
+
     const blocks = this.buildBlocks(app);
     const homeRooms = this.createHomeRoomRegistry(app);
     const summary = {
       totalBloques: blocks.length,
       asignados: 0,
       sinAula: 0,
+      conservados: blocks.filter((block) => !!block.aulaId).length,
       especiales: 0,
       laboratorios: 0,
       estructura: 0,
       optativas: 0,
       recursamiento: 0,
       fallback: 0,
+      sinAulaDetalles: [],
     };
-
-    app.horario.sesiones.forEach((sesion) => {
-      sesion.aulaId = null;
-    });
 
     const notify = async (current, detail) => {
       if (!onProgress) return;
@@ -43,6 +47,15 @@ const ClassroomService = {
 
     summary.asignados = blocks.filter((block) => !!block.aulaId).length;
     summary.sinAula = blocks.length - summary.asignados;
+    summary.sinAulaDetalles = blocks
+      .filter((block) => !block.aulaId)
+      .map((block) => ({
+        grupo: block.grupo?.nombre || block.grupoId,
+        asignatura: block.asignatura?.nombre || block.asignaturaId,
+        tipoSesion: block.tipoSesion || "clase",
+        dia: block.dia,
+        horaInicio: block.hours[0],
+      }));
     return summary;
   },
 
@@ -150,6 +163,7 @@ const ClassroomService = {
         last.profesorId === sesion.profesorId &&
         last.dia === sesion.dia &&
         last.tipoSesion === (sesion.tipoSesion || "clase") &&
+        last.aulaId === (sesion.aulaId || null) &&
         last.hours[last.hours.length - 1] + 1 === sesion.hora
       ) {
         last.hours.push(sesion.hora);
@@ -168,7 +182,7 @@ const ClassroomService = {
         turno: this.getTurno(grupo),
         hours: [sesion.hora],
         sessions: [sesion],
-        aulaId: null,
+        aulaId: sesion.aulaId || null,
       });
     });
 

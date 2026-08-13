@@ -198,19 +198,30 @@ class Grupo {
     nombre,
     turno,
     grado = null,
+    tipo = "regular",
     planAsignaturas = [],
     profesoresPorAsignatura = {},
     estructuraPorAsignatura = {},
+    franjasOptativasPorAsignatura = {},
   }) {
     this.id = id;
     this.nombre = nombre;
     this.turno = turno; // 'matutino' | 'vespertino'
     this.grado = grado;
+    this.tipo = tipo === "optativa" ? "optativa" : "regular";
 
     // Array de IDs de asignatura
     this.planAsignaturas = [...planAsignaturas];
     this.profesoresPorAsignatura = { ...profesoresPorAsignatura };
     this.estructuraPorAsignatura = { ...estructuraPorAsignatura };
+    this.franjasOptativasPorAsignatura = Object.fromEntries(
+      Object.entries(franjasOptativasPorAsignatura || {}).map(
+        ([asignaturaId, slotIds]) => [
+          asignaturaId,
+          Array.isArray(slotIds) ? [...slotIds] : slotIds ? [slotIds] : [],
+        ],
+      ),
+    );
   }
 
   tieneAsignatura(asignaturaId) {

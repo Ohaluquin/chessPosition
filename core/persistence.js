@@ -1,7 +1,13 @@
 const Persistence = {
+  CURRENT_VERSION: 5,
+
   exportData(app) {
     const exportObj = {
       ...app.data,
+      meta: {
+        ...(app.data.meta || {}),
+        version: this.CURRENT_VERSION,
+      },
       sesiones: app.horario.sesiones,
       bloqueos: app.horario.bloqueos,
     };
@@ -70,7 +76,8 @@ const Persistence = {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          resolve(JSON.parse(reader.result));
+          const text = String(reader.result || "").replace(/^\uFEFF/, "");
+          resolve(JSON.parse(text));
         } catch (err) {
           reject(err);
         }
@@ -78,6 +85,25 @@ const Persistence = {
       reader.onerror = () => reject(reader.error);
       reader.readAsText(file, "utf-8");
     });
+  },
+
+  inferGroupType(rawGroup) {
+    if (rawGroup?.tipo === "optativa" || rawGroup?.tipo === "optativas") {
+      return "optativa";
+    }
+    const subjects = Array.isArray(rawGroup?.planAsignaturas)
+      ? rawGroup.planAsignaturas
+      : [];
+    if (
+      subjects.length > 0 &&
+      subjects.every((item) => {
+        const id = typeof item === "string" ? item : item?.asignaturaId;
+        return String(id || "").toLowerCase().includes("opt");
+      })
+    ) {
+      return "optativa";
+    }
+    return "regular";
   },
 
   hydrateState(jsonData) {
@@ -114,9 +140,14 @@ const Persistence = {
             nombre: d.nombre,
             turno: d.turno,
             grado: d.grado ?? null,
+            tipo: this.inferGroupType(d),
             planAsignaturas: d.planAsignaturas ?? [],
             profesoresPorAsignatura: d.profesoresPorAsignatura ?? {},
             estructuraPorAsignatura: d.estructuraPorAsignatura ?? {},
+            franjasOptativasPorAsignatura:
+              d.franjasOptativasPorAsignatura ??
+              d.franjaOptativaPorAsignatura ??
+              {},
           }),
       ),
       profesores: (jsonData.profesores || []).map((d) => {
@@ -392,6 +423,7 @@ const Persistence = {
         (String(slot.periodo || "").trim().toLowerCase() === "par" ? 6 : 5);
 
       return (data.grupos || []).filter((grupo) => {
+        if (grupo.tipo === "optativa") return false;
         if (grupo.grado !== gradoObjetivo) return false;
         if (slot.turno && grupo.turno !== slot.turno) return false;
         return true;

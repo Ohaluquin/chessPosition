@@ -417,7 +417,31 @@ class Scheduler {
     return true;
   }
 
-  getAllowedHourIndices(grupo) {
+  getAllowedHourIndices(grupo, asignaturaId = null) {
+    if (grupo?.tipo === "optativa" && asignaturaId) {
+      const allowed = new Set();
+      Rules.getOptativeSlots(this.dataStore.data || {}, grupo, asignaturaId).forEach(
+        (slot) => {
+          const startIndex = this.dataStore.hours.indexOf(slot.inicio);
+          const endLabel =
+            slot.fin ||
+            (() => {
+              const [hour, minute] = String(slot.inicio || "00:00")
+                .split(":")
+                .map(Number);
+              const total = hour * 60 + minute + Number(slot.duracionMin || 90);
+              return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+                total % 60,
+              ).padStart(2, "0")}`;
+            })();
+          const endIndex = this.dataStore.hours.indexOf(endLabel);
+          for (let index = startIndex; index >= 0 && index < endIndex; index += 1) {
+            allowed.add(index);
+          }
+        },
+      );
+      return [...allowed].sort((a, b) => a - b);
+    }
     return this.dataStore.hours
       .map((label, index) => ({ label, index }))
       .filter(({ label }) => this.isHourAllowedForGroup(grupo, label))
@@ -465,7 +489,7 @@ class Scheduler {
     kind = "clase",
     excludeBlock = null,
   }) {
-    const allowedHours = this.getAllowedHourIndices(grupo);
+    const allowedHours = this.getAllowedHourIndices(grupo, asignatura.id);
     const allowedHourSet = new Set(allowedHours);
     const candidates = [];
 
@@ -526,6 +550,16 @@ class Scheduler {
 
   validateCandidate(grupo, asignatura, profesor, day, hourRange, kind = "clase") {
     let addedSegments = 0;
+
+    const optativeWindow = Rules.validateOptativeWindow(
+      this.dataStore.data || {},
+      grupo,
+      asignatura.id,
+      day,
+      hourRange,
+      this.dataStore.hours,
+    );
+    if (!optativeWindow.valid) return optativeWindow;
 
     if (
       this.isSingleInstanceSessionKind(kind) &&

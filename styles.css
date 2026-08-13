@@ -555,6 +555,13 @@ button:hover {
   align-items: end;
 }
 
+.group-list-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .group-editor-main {
   display: grid;
   grid-template-columns: minmax(240px, 1.8fr) minmax(180px, 1fr);
@@ -583,6 +590,48 @@ button:hover {
 .group-editor-actions {
   display: flex;
   align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.group-plan-editor {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.group-plan-editor h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+
+.group-plan-editor small {
+  color: var(--text-soft);
+}
+
+.group-plan-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px 10px;
+  margin-top: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.group-plan-option {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 0.88rem;
+}
+
+.group-plan-option small {
+  display: block;
+  font-size: 0.75rem;
 }
 
 .group-stats {

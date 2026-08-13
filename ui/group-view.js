@@ -1,4 +1,86 @@
 const GroupView = {
+  createGroupId(app, name) {
+    const normalized = String(name || "grupo")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "grupo";
+    const base = `g${normalized}`;
+    let candidate = base;
+    let suffix = 2;
+    while ((app.data.grupos || []).some((grupo) => grupo.id === candidate)) {
+      candidate = `${base}_${suffix}`;
+      suffix += 1;
+    }
+    return candidate;
+  },
+
+  startNew(app) {
+    if (!(app.data.asignaturas || []).length) {
+      alert("Carga una plantilla o importa un JSON antes de crear grupos.");
+      return;
+    }
+    app.groupEditorIsDraft = true;
+    app.groupEditorDraftSourceId = null;
+    app.groupEditorPendingPlanIds = new Set();
+    app.groupEditorSelectedAsignaturaId = null;
+    const grupo = new Grupo({
+      id: "__new_group__",
+      nombre: "",
+      turno: "matutino",
+      grado: app.data?.meta?.periodo === "par" ? 6 : 5,
+      tipo: "optativa",
+    });
+    app.currentView = { type: "GRUPO", entity: grupo };
+    app.updateTitle();
+    this.showEditor();
+    this.renderEditor(app);
+    app.refreshGrid();
+    document.getElementById("group-name")?.focus();
+  },
+
+  startDuplicate(app) {
+    const source = app.currentView?.type === "GRUPO" ? app.currentView.entity : null;
+    if (!source || app.groupEditorIsDraft) {
+      alert("Selecciona un grupo existente para duplicarlo.");
+      return;
+    }
+
+    app.groupEditorIsDraft = true;
+    app.groupEditorDraftSourceId = source.id;
+    app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(source));
+    app.groupEditorSelectedAsignaturaId = null;
+    const grupo = new Grupo({
+      id: "__new_group__",
+      nombre: `${source.nombre} copia`,
+      turno: source.turno,
+      grado: source.grado,
+      tipo: source.tipo,
+      planAsignaturas: [...app.groupEditorPendingPlanIds],
+      estructuraPorAsignatura: { ...source.estructuraPorAsignatura },
+      franjasOptativasPorAsignatura: { ...source.franjasOptativasPorAsignatura },
+    });
+    app.currentView = { type: "GRUPO", entity: grupo };
+    app.updateTitle();
+    this.showEditor();
+    this.renderEditor(app);
+    app.refreshGrid();
+    document.getElementById("group-name")?.focus();
+  },
+
+  cancelDraft(app) {
+    if (!app.groupEditorIsDraft) return;
+    app.groupEditorIsDraft = false;
+    app.groupEditorDraftSourceId = null;
+    app.groupEditorPendingPlanIds = null;
+    app.groupEditorSelectedAsignaturaId = null;
+    app.currentView = { type: "GRUPO", entity: null };
+    this.hideEditor();
+    app.updateTitle();
+    app.refreshGrid();
+  },
+
   formatDiagnosticsList(items = []) {
     return items
       .map((item) => `<li>${item}</li>`)
@@ -77,6 +159,9 @@ const GroupView = {
   },
 
   select(app, grupo) {
+    app.groupEditorIsDraft = false;
+    app.groupEditorDraftSourceId = null;
+    app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(grupo));
     app.currentView = { type: "GRUPO", entity: grupo };
     app.updateTitle();
     this.showEditor();
@@ -99,15 +184,29 @@ const GroupView = {
     if (!view || view.type !== "GRUPO" || !view.entity) return;
 
     const grupo = view.entity;
-    GroupService.ensureProfesorAssignments(app, grupo);
+    if (!app.groupEditorIsDraft) GroupService.ensureProfesorAssignments(app, grupo);
     const inputName = document.getElementById("group-name");
     const selectTurno = document.getElementById("group-turno");
+    const selectGrade = document.getElementById("group-grade");
+    const selectType = document.getElementById("group-type");
     const selectSubjects = document.getElementById("group-subjects-list");
     const detail = document.getElementById("group-subject-detail");
     const stats = document.getElementById("group-stats");
 
     if (inputName) inputName.value = grupo.nombre ?? "";
     if (selectTurno) selectTurno.value = grupo.turno ?? "matutino";
+    if (selectGrade) selectGrade.value = String(grupo.grado ?? 1);
+    if (selectType) selectType.value = grupo.tipo ?? "regular";
+    const cancelButton = document.getElementById("btn-group-cancel");
+    if (cancelButton) cancelButton.style.display = app.groupEditorIsDraft ? "inline-block" : "none";
+    const saveButton = document.getElementById("btn-group-save");
+    if (saveButton) saveButton.textContent = app.groupEditorIsDraft ? "Crear Grupo" : "Guardar Grupo";
+
+    if (!(app.groupEditorPendingPlanIds instanceof Set)) {
+      app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(grupo));
+    }
+    grupo.planAsignaturas = [...app.groupEditorPendingPlanIds];
+    this.renderPlanEditor(app, grupo);
 
     const summaries = GroupService.buildAsignaturaSummaries(app, grupo).sort((a, b) =>
       a.asignatura.nombre.localeCompare(b.asignatura.nombre, "es"),
@@ -169,10 +268,113 @@ const GroupView = {
 
     if (detail && summaries.length === 0) {
       detail.innerHTML = "<small>Este grupo todavia no tiene asignaturas en su plan.</small>";
-      return;
+    } else {
+      this.renderSelectedSubjectDetail(app);
     }
 
-    this.renderSelectedSubjectDetail(app);
+    const refreshDraftProperties = () => {
+      grupo.nombre = inputName?.value.trim() || grupo.nombre;
+      grupo.turno = selectTurno?.value || grupo.turno;
+      grupo.grado = Number(selectGrade?.value) || grupo.grado;
+      grupo.tipo = selectType?.value === "optativa" ? "optativa" : "regular";
+      this.renderEditor(app);
+      app.refreshGrid();
+    };
+    if (selectTurno) selectTurno.onchange = refreshDraftProperties;
+    if (selectGrade) selectGrade.onchange = refreshDraftProperties;
+    if (selectType) selectType.onchange = () => {
+      if (
+        !app.groupEditorIsDraft &&
+        selectType.value !== grupo.tipo &&
+        (app.horario.sesiones || []).some((session) => session.grupoId === grupo.id)
+      ) {
+        alert("No se puede cambiar el tipo de un grupo que ya tiene sesiones programadas.");
+        selectType.value = grupo.tipo;
+        return;
+      }
+      const previousPlanIds = [...app.groupEditorPendingPlanIds];
+      app.groupEditorPendingPlanIds = new Set(
+        [...app.groupEditorPendingPlanIds].filter((id) => {
+          const subject = app.data.asignaturas.find((item) => item.id === id);
+          return GroupService.isOptativeSubject(subject) === (selectType.value === "optativa");
+        }),
+      );
+      previousPlanIds
+        .filter((id) => !app.groupEditorPendingPlanIds.has(id))
+        .forEach((id) => {
+          delete GroupService.ensureProfesorMap(grupo)[id];
+          delete GroupService.ensureStructureMap(grupo)[id];
+          delete GroupService.ensureOptativeSlotMap(grupo)[id];
+        });
+      refreshDraftProperties();
+    };
+  },
+
+  renderPlanEditor(app, grupo) {
+    const container = document.getElementById("group-plan-options");
+    const help = document.getElementById("group-plan-help");
+    if (!container) return;
+
+    const wantsOptatives = grupo.tipo === "optativa";
+    const subjects = (app.data.asignaturas || [])
+      .filter((subject) => GroupService.isOptativeSubject(subject) === wantsOptatives)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    if (help) {
+      help.textContent = wantsOptatives
+        ? "Selecciona una o dos optativas y configura profesor y franja en el detalle."
+        : "Selecciona las materias que pertenecen al grupo.";
+    }
+
+    container.innerHTML = subjects
+      .map((subject) => {
+        const academy = app.data.academias.find((item) => item.id === subject.academiaId);
+        const checked = app.groupEditorPendingPlanIds.has(subject.id) ? " checked" : "";
+        return `
+          <label class="group-plan-option">
+            <input type="checkbox" value="${subject.id}"${checked}>
+            <span>${subject.nombre}<small>${academy?.nombre || "Sin academia"}</small></span>
+          </label>`;
+      })
+      .join("");
+
+    container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.onchange = () => {
+        if (checkbox.checked) {
+          if (wantsOptatives && app.groupEditorPendingPlanIds.size >= 2) {
+            checkbox.checked = false;
+            alert("Cada grupo optativo puede tener como maximo dos materias.");
+            return;
+          }
+          app.groupEditorPendingPlanIds.add(checkbox.value);
+          app.groupEditorSelectedAsignaturaId = checkbox.value;
+        } else {
+          const scheduledCount = (app.horario.sesiones || []).filter(
+            (session) =>
+              session.grupoId === grupo.id &&
+              session.asignaturaId === checkbox.value,
+          ).length;
+          if (
+            scheduledCount > 0 &&
+            !window.confirm(
+              `Esta materia tiene ${scheduledCount} segmento(s) programado(s). ` +
+                "Quitarlos del grupo tambien eliminara esas sesiones. ¿Continuar?",
+            )
+          ) {
+            checkbox.checked = true;
+            return;
+          }
+          if (scheduledCount > 0) {
+            GroupService.clearScheduledSubjectSessions(app, grupo.id, checkbox.value);
+          }
+          app.groupEditorPendingPlanIds.delete(checkbox.value);
+          delete GroupService.ensureProfesorMap(grupo)[checkbox.value];
+          delete GroupService.ensureStructureMap(grupo)[checkbox.value];
+          delete GroupService.ensureOptativeSlotMap(grupo)[checkbox.value];
+        }
+        grupo.planAsignaturas = [...app.groupEditorPendingPlanIds];
+        this.renderEditor(app);
+      };
+    });
   },
 
   renderSelectedSubjectDetail(app) {
@@ -206,6 +408,38 @@ const GroupView = {
         return `<option value="${variant.key}"${selectedAttr}>${variant.label} - ${description}</option>`;
       })
       .join("");
+    const compatibleTeachers = GroupService.getCompatibleProfesores(
+      app,
+      view.entity,
+      selected.asignatura.id,
+    );
+    const assignedTeacherId = GroupService.getAssignedProfesorId(
+      view.entity,
+      selected.asignatura.id,
+    );
+    const teacherOptions = [
+      '<option value="">Sin asignar</option>',
+      ...compatibleTeachers.map(
+        (teacher) =>
+          `<option value="${teacher.id}"${
+            teacher.id === assignedTeacherId ? " selected" : ""
+          }>${teacher.nombre}</option>`,
+      ),
+    ].join("");
+    const availableSlots = GroupService.getAvailableOptativeSlots(app, view.entity);
+    const assignedSlotId = GroupService.getOptativeSlotIds(
+      view.entity,
+      selected.asignatura.id,
+    )[0] || "";
+    const slotOptions = [
+      '<option value="">Selecciona una franja</option>',
+      ...availableSlots.map(
+        (slot) =>
+          `<option value="${slot.id}"${
+            slot.id === assignedSlotId ? " selected" : ""
+          }>${GroupService.formatOptativeSlot(slot)}</option>`,
+      ),
+    ].join("");
     const diagnosisRequests = GroupService.buildScheduleRequest(app, view.entity).filter(
       (request) => request.asignaturaId === selected.asignatura.id,
     );
@@ -247,6 +481,18 @@ const GroupView = {
           <span>Profesor asignado: ${selected.profesorAsignado?.nombre || "Sin asignar"}</span>
         </div>
         <div class="group-subject-detail-variant">
+          <label for="group-subject-teacher">Profesor</label>
+          <select id="group-subject-teacher">${teacherOptions}</select>
+        </div>
+        ${
+          view.entity.tipo === "optativa"
+            ? `<div class="group-subject-detail-variant">
+                <label for="group-subject-slot">Franja permitida</label>
+                <select id="group-subject-slot">${slotOptions}</select>
+              </div>`
+            : ""
+        }
+        <div class="group-subject-detail-variant">
           <label for="group-subject-variant">Variante semanal</label>
           <select id="group-subject-variant">${variantOptions}</select>
         </div>
@@ -262,6 +508,68 @@ const GroupView = {
         }
       </div>
     `;
+
+    const teacherSelect = document.getElementById("group-subject-teacher");
+    if (teacherSelect) {
+      teacherSelect.onchange = () => {
+        GroupService.ensureProfesorMap(view.entity)[selected.asignatura.id] =
+          teacherSelect.value || null;
+        if (!app.groupEditorIsDraft) {
+          app.horario.sesiones.forEach((session) => {
+            if (
+              session.grupoId === view.entity.id &&
+              session.asignaturaId === selected.asignatura.id
+            ) {
+              session.profesorId = teacherSelect.value || null;
+            }
+          });
+          GroupService.rebuildProfesorGroupLinks(app);
+        }
+        this.renderEditor(app);
+        app.refreshGrid();
+      };
+    }
+
+    const slotSelect = document.getElementById("group-subject-slot");
+    if (slotSelect) {
+      slotSelect.onchange = () => {
+        const nextSlotId = slotSelect.value || "";
+        const previousSlotId = GroupService.getOptativeSlotIds(
+          view.entity,
+          selected.asignatura.id,
+        )[0] || "";
+        const scheduledCount = (app.horario.sesiones || []).filter(
+          (session) =>
+            session.grupoId === view.entity.id &&
+            session.asignaturaId === selected.asignatura.id,
+        ).length;
+        if (
+          nextSlotId !== previousSlotId &&
+          scheduledCount > 0 &&
+          !window.confirm(
+            `Cambiar la franja eliminara ${scheduledCount} segmento(s) programado(s). ` +
+              "¿Continuar?",
+          )
+        ) {
+          slotSelect.value = previousSlotId;
+          return;
+        }
+        if (nextSlotId !== previousSlotId && scheduledCount > 0) {
+          GroupService.clearScheduledSubjectSessions(
+            app,
+            view.entity.id,
+            selected.asignatura.id,
+          );
+        }
+        GroupService.setOptativeSlotIds(
+          view.entity,
+          selected.asignatura.id,
+          nextSlotId ? [nextSlotId] : [],
+        );
+        this.renderEditor(app);
+        app.refreshGrid();
+      };
+    }
 
     const variantSelect = document.getElementById("group-subject-variant");
     if (variantSelect) {
@@ -292,9 +600,71 @@ const GroupView = {
     const grupo = view.entity;
     const inputName = document.getElementById("group-name");
     const selectTurno = document.getElementById("group-turno");
+    const selectGrade = document.getElementById("group-grade");
+    const selectType = document.getElementById("group-type");
 
-    if (inputName) grupo.nombre = inputName.value.trim() || grupo.nombre;
+    const nextName = inputName?.value.trim() || "";
+    if (!nextName) {
+      alert("Escribe el nombre del grupo.");
+      inputName?.focus();
+      return;
+    }
+
+    const duplicateName = app.data.grupos.some(
+      (item) =>
+        item !== grupo &&
+        String(item.nombre).trim().toLowerCase() === nextName.toLowerCase(),
+    );
+    if (duplicateName) {
+      alert("Ya existe un grupo con ese nombre.");
+      inputName?.focus();
+      return;
+    }
+
+    const planIds = [...(app.groupEditorPendingPlanIds || [])];
+    if (planIds.length === 0) {
+      alert("Selecciona al menos una materia para el grupo.");
+      return;
+    }
+
+    const nextType = selectType?.value === "optativa" ? "optativa" : "regular";
+    if (nextType === "optativa") {
+      const missingSlot = planIds.find(
+        (subjectId) => GroupService.getOptativeSlotIds(grupo, subjectId).length === 0,
+      );
+      if (missingSlot) {
+        const subject = app.data.asignaturas.find((item) => item.id === missingSlot);
+        alert(`Selecciona una franja para ${subject?.nombre || missingSlot}.`);
+        app.groupEditorSelectedAsignaturaId = missingSlot;
+        this.renderEditor(app);
+        return;
+      }
+      const selectedSlots = planIds.map(
+        (subjectId) => GroupService.getOptativeSlotIds(grupo, subjectId)[0],
+      );
+      if (new Set(selectedSlots).size !== selectedSlots.length) {
+        alert("Las materias del mismo grupo deben usar franjas diferentes.");
+        return;
+      }
+    }
+
+    grupo.nombre = nextName;
     if (selectTurno) grupo.turno = selectTurno.value || grupo.turno;
+    grupo.grado = Number(selectGrade?.value) || grupo.grado;
+    grupo.tipo = nextType;
+    grupo.planAsignaturas = planIds;
+
+    if (app.groupEditorIsDraft) {
+      grupo.id = this.createGroupId(app, nextName);
+      app.data.grupos.push(grupo);
+      app.groupEditorIsDraft = false;
+      app.groupEditorDraftSourceId = null;
+      const cancelButton = document.getElementById("btn-group-cancel");
+      if (cancelButton) cancelButton.style.display = "none";
+    }
+
+    GroupService.ensureProfesorAssignments(app, grupo);
+    GroupService.rebuildProfesorGroupLinks(app);
 
     app.renderGruposList();
     this.renderEditor(app);
@@ -304,7 +674,9 @@ const GroupView = {
 
   renderGrid(app, grupo) {
     Views.resetVisibleHours?.();
-    if (grupo.turno === "matutino") {
+    if (grupo.tipo === "optativa") {
+      Views.setVisibleHours("08:00", "16:00");
+    } else if (grupo.turno === "matutino") {
       Views.setVisibleHours("08:00", "14:00");
     } else {
       Views.setVisibleHours("14:00", "20:00");
@@ -397,6 +769,10 @@ const GroupView = {
   },
 
   handleCellClick(app, grupo, day, hour) {
+    if (app.groupEditorIsDraft) {
+      alert("Guarda el grupo antes de programar sus sesiones.");
+      return;
+    }
     const existingSession = SessionService.findGroupSession(
       app,
       grupo.id,

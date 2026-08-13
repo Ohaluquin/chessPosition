@@ -163,6 +163,12 @@ class App {
 
     const btnGroupSave = document.getElementById("btn-group-save");
     if (btnGroupSave) btnGroupSave.onclick = () => this.saveGrupoEdits();
+    const btnGroupNew = document.getElementById("btn-group-new");
+    if (btnGroupNew) btnGroupNew.onclick = () => GroupView.startNew(this);
+    const btnGroupDuplicate = document.getElementById("btn-group-duplicate");
+    if (btnGroupDuplicate) btnGroupDuplicate.onclick = () => GroupView.startDuplicate(this);
+    const btnGroupCancel = document.getElementById("btn-group-cancel");
+    if (btnGroupCancel) btnGroupCancel.onclick = () => GroupView.cancelDraft(this);
 
     document.addEventListener("keydown", (e) => {
       if (!e.ctrlKey) return;
@@ -319,6 +325,8 @@ class App {
     };
 
     show("grupos-list", type === "GRUPO");
+    const groupActions = document.getElementById("group-list-actions");
+    if (groupActions) groupActions.style.display = type === "GRUPO" ? "grid" : "none";
     show("profesores-panel", type === "PROFESOR");
     show("aulas-list", type === "AULA");
     show("academias-list", type === "ACADEMIA");
@@ -509,12 +517,24 @@ class App {
     let msg = `Bloques revisados: ${summary.totalBloques}\n`;
     msg += `Bloques con aula: ${summary.asignados}\n`;
     msg += `Sin aula: ${summary.sinAula}\n`;
+    msg += `Aulas existentes conservadas: ${summary.conservados}\n`;
     msg += `Especiales: ${summary.especiales}\n`;
     msg += `Laboratorios: ${summary.laboratorios}\n`;
     msg += `Estructura: ${summary.estructura}\n`;
     msg += `Optativas: ${summary.optativas}\n`;
     msg += `Recursamiento: ${summary.recursamiento}\n`;
     msg += `Fallback: ${summary.fallback}`;
+    if (summary.sinAulaDetalles?.length) {
+      msg += "\n\nPendientes de aula:\n";
+      summary.sinAulaDetalles.slice(0, 10).forEach((item) => {
+        const day = this.days[item.dia] || `Dia ${item.dia + 1}`;
+        const hour = this.hours[item.horaInicio] || "";
+        msg += `- ${item.grupo}: ${item.asignatura} (${item.tipoSesion}), ${day} ${hour}\n`;
+      });
+      if (summary.sinAulaDetalles.length > 10) {
+        msg += `- ... y ${summary.sinAulaDetalles.length - 10} bloque(s) mas\n`;
+      }
+    }
     this.setAutomationProgress({
       label: "Autoasignacion completada",
       detail: `Asignados: ${summary.asignados} de ${summary.totalBloques} bloques`,

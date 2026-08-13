@@ -121,7 +121,11 @@ const ScheduleEditor = {
       const profesores = profesorAsignado
         ? [profesorAsignado]
         : SessionService.getAllowedProfesores(app, grupo, asignaturaId);
-      const aulas = SessionService.getAllowedAulas(app, asignaturaId);
+      const aulas = SessionService.getAllowedAulas(
+        app,
+        asignaturaId,
+        selectSessionKind.value,
+      );
 
       Views.populateSelect(selectProfesor, profesores, "nombre");
       Views.populateSelect(
@@ -552,6 +556,7 @@ const ScheduleEditor = {
 
   buildDataStore(app) {
     return {
+      data: app.data,
       getGrupo: (id) => app.data.grupos.find((g) => g.id === id),
       getAsignatura: (id) => app.data.asignaturas.find((a) => a.id === id),
       getAcademia: (id) => app.data.academias.find((a) => a.id === id),

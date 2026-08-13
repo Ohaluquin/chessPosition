@@ -113,9 +113,14 @@ const StudentApp = {
           nombre: item.nombre,
           turno: item.turno,
           grado: item.grado ?? null,
+          tipo: item.tipo ?? "regular",
           planAsignaturas: item.planAsignaturas ?? [],
           profesoresPorAsignatura: item.profesoresPorAsignatura ?? {},
           estructuraPorAsignatura: item.estructuraPorAsignatura ?? {},
+          franjasOptativasPorAsignatura:
+            item.franjasOptativasPorAsignatura ??
+            item.franjaOptativaPorAsignatura ??
+            {},
         }),
     );
     const teachers = (jsonData.profesores || []).map(
