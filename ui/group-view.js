@@ -419,12 +419,19 @@ const GroupView = {
     );
     const teacherOptions = [
       '<option value="">Sin asignar</option>',
-      ...compatibleTeachers.map(
-        (teacher) =>
-          `<option value="${teacher.id}"${
-            teacher.id === assignedTeacherId ? " selected" : ""
-          }>${teacher.nombre}</option>`,
-      ),
+      ...compatibleTeachers.map((teacher) => {
+        const affinity = GroupService.getProfesorTurnAffinity(app, teacher, view.entity);
+        const professorWindow = Rules.getProfessorTimeWindow(app.data, teacher);
+        const groupWindow = Rules.getGroupTimeWindow(app.data, view.entity);
+        const overlap = Rules.getTimeWindowIntersection(professorWindow, groupWindow);
+        const crossLabel =
+          affinity === 1 && overlap
+            ? ` · cruce válido ${overlap.inicio}-${overlap.fin}`
+            : "";
+        return `<option value="${teacher.id}"${
+          teacher.id === assignedTeacherId ? " selected" : ""
+        }>${teacher.nombre} (${teacher.turno}${crossLabel})</option>`;
+      }),
     ].join("");
     const availableSlots = GroupService.getAvailableOptativeSlots(app, view.entity);
     const assignedSlotId = GroupService.getOptativeSlotIds(
@@ -674,13 +681,11 @@ const GroupView = {
 
   renderGrid(app, grupo) {
     Views.resetVisibleHours?.();
-    if (grupo.tipo === "optativa") {
-      Views.setVisibleHours("08:00", "16:00");
-    } else if (grupo.turno === "matutino") {
-      Views.setVisibleHours("08:00", "14:00");
-    } else {
-      Views.setVisibleHours("14:00", "20:00");
-    }
+    const visibleWindow =
+      grupo.tipo === "optativa"
+        ? Rules.getConfiguredTimeWindow(app.data, "profesor", grupo.turno)
+        : Rules.getGroupTimeWindow(app.data, grupo);
+    Views.setVisibleHours(visibleWindow.inicio, visibleWindow.fin);
 
     const sesiones = SessionService.getGroupSessions(app, grupo.id);
     this.paintProfesorShadow(app, grupo);

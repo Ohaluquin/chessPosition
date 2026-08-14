@@ -1,24 +1,16 @@
 const SessionService = {
-  getGroupTimeWindow(grupo) {
-    if (grupo?.turno === "vespertino") {
-      return { inicio: "14:00", fin: "20:00" };
-    }
-    return { inicio: "08:00", fin: "14:00" };
+  getGroupTimeWindow(app, grupo) {
+    return Rules.getGroupTimeWindow(app?.data, grupo);
   },
 
   isProfesorAvailableForHour(app, profesor, hourIndex) {
     const label = app.hours[hourIndex];
     if (!label) return false;
 
-    if (profesor?.turno === "matutino") {
-      return label >= "08:00" && label < "16:00";
-    }
-
-    if (profesor?.turno === "vespertino") {
-      return label >= "12:00" && label < "20:00";
-    }
-
-    return true;
+    return Rules.isHourWithinWindow(
+      label,
+      Rules.getProfessorTimeWindow(app?.data, profesor),
+    );
   },
 
   getGroupSessions(app, grupoId) {
@@ -243,7 +235,7 @@ const SessionService = {
     );
     if (!optativeWindow.valid) return optativeWindow;
 
-    const turnoWindow = this.getGroupTimeWindow(grupo);
+    const turnoWindow = this.getGroupTimeWindow(app, grupo);
 
     const withinTurno =
       grupo.tipo === "optativa" || hourRange.every((hourIndex) => {

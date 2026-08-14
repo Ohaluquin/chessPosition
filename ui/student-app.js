@@ -131,6 +131,7 @@ const StudentApp = {
           academiaId: item.academiaId,
           turno: item.turno,
           activo: item.activo ?? true,
+          horarioLaboral: item.horarioLaboral ?? null,
         }),
     );
     const rooms = (jsonData.aulas || []).map((item) => new Aula(item.id, item.nombre, item.tipo));

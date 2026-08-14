@@ -32,6 +32,7 @@ vm.runInContext(
     ClassroomService,
     GroupService,
     Grupo,
+    Profesor,
     Horario,
     Scheduler
   };`,
@@ -45,6 +46,7 @@ const {
   ClassroomService,
   GroupService,
   Grupo,
+  Profesor,
   Horario,
   Scheduler,
 } = context.testApi;
@@ -160,6 +162,112 @@ assert.equal(
   ).valid,
   false,
   "an optative must be rejected outside its assigned days",
+);
+
+const regularMorningGroup = new Grupo({
+  id: "g-cross-morning",
+  nombre: "Cruce matutino",
+  turno: "matutino",
+  grado: 5,
+  planAsignaturas: ["matematicas_i"],
+});
+const eveningMathTeacher = app.data.profesores.find(
+  (teacher) =>
+    teacher.academiaId === "matematicas" &&
+    teacher.turno === "vespertino" &&
+    teacher.activo !== false,
+);
+assert.ok(eveningMathTeacher, "the fixture must include an active evening Math teacher");
+assert.equal(
+  GroupService.isProfesorCompatibleWithGrupoTurno(
+    app,
+    eveningMathTeacher,
+    regularMorningGroup,
+  ),
+  true,
+  "an evening teacher must be compatible with a morning group during the overlap",
+);
+assert.deepEqual(
+  { ...Rules.getTimeWindowIntersection(
+    Rules.getProfessorTimeWindow(app.data, eveningMathTeacher),
+    Rules.getGroupTimeWindow(app.data, regularMorningGroup),
+  ) },
+  { inicio: "12:00", fin: "14:00" },
+  "the default cross-turn overlap must be 12:00-14:00",
+);
+const compatibleMathTeachers = GroupService.getCompatibleProfesores(
+  app,
+  regularMorningGroup,
+  "matematicas_i",
+);
+assert.equal(
+  compatibleMathTeachers[0]?.turno,
+  "matutino",
+  "manual choices must prefer same-turn teachers while retaining cross-turn teachers",
+);
+assert.ok(
+  compatibleMathTeachers.some((teacher) => teacher.id === eveningMathTeacher.id),
+  "manual choices must include a compatible cross-turn teacher",
+);
+
+const regularEveningGroup = new Grupo({
+  id: "g-cross-evening",
+  nombre: "Cruce vespertino",
+  turno: "vespertino",
+  grado: 5,
+  planAsignaturas: ["matematicas_i"],
+});
+const morningMathTeacher = app.data.profesores.find(
+  (teacher) =>
+    teacher.academiaId === "matematicas" &&
+    teacher.turno === "matutino" &&
+    teacher.activo !== false,
+);
+assert.equal(
+  GroupService.isProfesorCompatibleWithGrupoTurno(
+    app,
+    morningMathTeacher,
+    regularEveningGroup,
+  ),
+  true,
+  "a morning teacher must be compatible with an evening group during the overlap",
+);
+assert.deepEqual(
+  { ...Rules.getTimeWindowIntersection(
+    Rules.getProfessorTimeWindow(app.data, morningMathTeacher),
+    Rules.getGroupTimeWindow(app.data, regularEveningGroup),
+  ) },
+  { inicio: "14:00", fin: "16:00" },
+  "the inverse default cross-turn overlap must be 14:00-16:00",
+);
+
+const exceptionalTeacher = new Profesor({
+  id: "t-exception",
+  nombre: "Permiso especial",
+  academiaId: "matematicas",
+  turno: "vespertino",
+  horarioLaboral: { inicio: "10:00", fin: "18:00" },
+});
+assert.deepEqual(
+  { ...Rules.getProfessorTimeWindow(app.data, exceptionalTeacher) },
+  { inicio: "10:00", fin: "18:00" },
+  "a professor-specific work window must override the default shift window",
+);
+const nonOverlappingSameTurnTeacher = new Profesor({
+  id: "t-no-overlap",
+  nombre: "Sin cruce real",
+  academiaId: "matematicas",
+  turno: "matutino",
+  horarioLaboral: { inicio: "16:00", fin: "18:00" },
+});
+assert.equal(
+  GroupService.isProfesorCompatibleWithGrupoTurno(
+    app,
+    nonOverlappingSameTurnTeacher,
+    regularMorningGroup,
+  ),
+  false,
+  "even a same-turn teacher must have a real work-window overlap with the group",
 );
 
 const mathOptative = app.data.asignaturas.find(

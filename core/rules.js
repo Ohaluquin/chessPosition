@@ -3,6 +3,17 @@
  */
 
 const Rules = {
+  DEFAULT_TIME_WINDOWS: {
+    grupo: {
+      matutino: { inicio: "08:00", fin: "14:00" },
+      vespertino: { inicio: "14:00", fin: "20:00" },
+    },
+    profesor: {
+      matutino: { inicio: "08:00", fin: "16:00" },
+      vespertino: { inicio: "12:00", fin: "20:00" },
+    },
+  },
+
   normalizeText: (value) =>
     String(value || "")
       .normalize("NFD")
@@ -19,6 +30,53 @@ const Rules = {
       jueves: 3,
       viernes: 4,
     }[Rules.normalizeText(value)];
+  },
+
+  isValidTime: (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")),
+
+  normalizeTimeWindow: (window, fallback) => {
+    const inicio = Rules.isValidTime(window?.inicio) ? window.inicio : fallback.inicio;
+    const fin = Rules.isValidTime(window?.fin) ? window.fin : fallback.fin;
+    return inicio < fin ? { inicio, fin } : { ...fallback };
+  },
+
+  getConfiguredTimeWindow: (data, type, turno) => {
+    const normalizedTurn = turno === "vespertino" ? "vespertino" : "matutino";
+    const fallback = Rules.DEFAULT_TIME_WINDOWS[type]?.[normalizedTurn] || {
+      inicio: "08:00",
+      fin: "20:00",
+    };
+    const configured = data?.config?.turnos?.[type]?.[normalizedTurn];
+    return Rules.normalizeTimeWindow(configured, fallback);
+  },
+
+  getGroupTimeWindow: (data, grupo) =>
+    Rules.getConfiguredTimeWindow(data, "grupo", grupo?.turno),
+
+  getProfessorTimeWindow: (data, profesor) => {
+    const fallback = Rules.getConfiguredTimeWindow(data, "profesor", profesor?.turno);
+    return Rules.normalizeTimeWindow(profesor?.horarioLaboral, fallback);
+  },
+
+  isHourWithinWindow: (label, window) =>
+    !!label && !!window && label >= window.inicio && label < window.fin,
+
+  timeWindowsOverlap: (a, b) =>
+    !!a && !!b && a.inicio < b.fin && a.fin > b.inicio,
+
+  getTimeWindowIntersection: (a, b) =>
+    Rules.timeWindowsOverlap(a, b)
+      ? { inicio: a.inicio > b.inicio ? a.inicio : b.inicio, fin: a.fin < b.fin ? a.fin : b.fin }
+      : null,
+
+  getProfessorTurnAffinity: (data, profesor, grupo) => {
+    if (!profesor || !grupo) return Number.POSITIVE_INFINITY;
+    const overlaps = Rules.timeWindowsOverlap(
+      Rules.getProfessorTimeWindow(data, profesor),
+      Rules.getGroupTimeWindow(data, grupo),
+    );
+    if (!overlaps) return Number.POSITIVE_INFINITY;
+    return profesor.turno === grupo.turno ? 0 : 1;
   },
 
   getOptativeSlotIds: (grupo, asignaturaId) => {

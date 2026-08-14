@@ -230,12 +230,16 @@ class Grupo {
 }
 
 class Profesor {
-  constructor({ id, nombre, academiaId, turno, activo = true }) {
+  constructor({ id, nombre, academiaId, turno, activo = true, horarioLaboral = null }) {
     this.id = id;
     this.nombre = nombre;
     this.academiaId = academiaId; // una sola
     this.turno = turno; // 'matutino' | 'vespertino'
     this.activo = activo;
+    this.horarioLaboral =
+      horarioLaboral?.inicio && horarioLaboral?.fin
+        ? { inicio: horarioLaboral.inicio, fin: horarioLaboral.fin }
+        : null;
 
     // Bloqueos/permiso explícitos viven en Horario.bloqueos
     // Esto es solo para compatibilidad futura

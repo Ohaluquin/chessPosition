@@ -49,10 +49,11 @@ const GroupService = {
 
   getAvailableOptativeSlots(app, grupo) {
     const period = String(app.data?.meta?.periodo || "").toLowerCase();
-    const groupWindow =
-      grupo?.turno === "vespertino"
-        ? { inicio: "12:00", fin: "20:00" }
-        : { inicio: "08:00", fin: "16:00" };
+    const groupWindow = Rules.getConfiguredTimeWindow(
+      app.data,
+      "profesor",
+      grupo?.turno,
+    );
     const toMinutes = (value) => {
       const [hour, minute] = String(value || "00:00").split(":").map(Number);
       return hour * 60 + minute;
@@ -371,39 +372,25 @@ const GroupService = {
     );
   },
 
-  getGrupoTimeWindow(grupo) {
-    if (grupo?.turno === "vespertino") {
-      return { inicio: "14:00", fin: "20:00" };
-    }
-    return { inicio: "08:00", fin: "14:00" };
+  getGrupoTimeWindow(app, grupo) {
+    return Rules.getGroupTimeWindow(app?.data, grupo);
   },
 
-  getProfesorTimeWindow(profesor) {
-    if (profesor?.turno === "matutino") {
-      return { inicio: "08:00", fin: "16:00" };
-    }
-    if (profesor?.turno === "vespertino") {
-      return { inicio: "12:00", fin: "20:00" };
-    }
-    return { inicio: "08:00", fin: "20:00" };
+  getProfesorTimeWindow(app, profesor) {
+    return Rules.getProfessorTimeWindow(app?.data, profesor);
   },
 
-  hasProfesorTurnOverlapWithGrupo(profesor, grupo) {
+  hasProfesorTurnOverlapWithGrupo(app, profesor, grupo) {
     if (!profesor || !grupo) return false;
 
-    const grupoWindow = this.getGrupoTimeWindow(grupo);
-    const profesorWindow = this.getProfesorTimeWindow(profesor);
-    return (
-      profesorWindow.inicio < grupoWindow.fin &&
-      profesorWindow.fin > grupoWindow.inicio
+    return Rules.timeWindowsOverlap(
+      this.getProfesorTimeWindow(app, profesor),
+      this.getGrupoTimeWindow(app, grupo),
     );
   },
 
-  getProfesorTurnAffinity(profesor, grupo) {
-    if (!profesor || !grupo) return Number.POSITIVE_INFINITY;
-    if (profesor.turno === grupo.turno) return 0;
-    if (this.hasProfesorTurnOverlapWithGrupo(profesor, grupo)) return 1;
-    return Number.POSITIVE_INFINITY;
+  getProfesorTurnAffinity(app, profesor, grupo) {
+    return Rules.getProfessorTurnAffinity(app?.data, profesor, grupo);
   },
 
   compareProfesorLoad(loadA, loadB) {
@@ -442,8 +429,8 @@ const GroupService = {
 
   countValidStartsForBlock(app, grupo, asignatura, profesor, block) {
     const duration = Math.max(1, block?.duration || asignatura?.duracionSegmentos || 1);
-    const grupoWindow = this.getGrupoTimeWindow(grupo);
-    const profesorWindow = this.getProfesorTimeWindow(profesor);
+    const grupoWindow = this.getGrupoTimeWindow(app, grupo);
+    const profesorWindow = this.getProfesorTimeWindow(app, profesor);
     let count = 0;
 
     for (let day = 0; day < 5; day += 1) {
@@ -517,11 +504,11 @@ const GroupService = {
         (profesor) =>
           profesor.activo !== false &&
           profesor.academiaId === asignatura.academiaId &&
-          this.isProfesorCompatibleWithGrupoTurno(profesor, grupo),
+          this.isProfesorCompatibleWithGrupoTurno(app, profesor, grupo),
       )
       .sort((a, b) => {
-        const affinityA = this.getProfesorTurnAffinity(a, grupo);
-        const affinityB = this.getProfesorTurnAffinity(b, grupo);
+        const affinityA = this.getProfesorTurnAffinity(app, a, grupo);
+        const affinityB = this.getProfesorTurnAffinity(app, b, grupo);
         const aAssigned = assignedToGroup.has(a.id) ? 0 : 1;
         const bAssigned = assignedToGroup.has(b.id) ? 0 : 1;
         if (affinityA !== affinityB) return affinityA - affinityB;
@@ -686,8 +673,8 @@ const GroupService = {
   compareProfesorAssignmentCandidates(app, grupo, asignatura, getFitness, minGroups, a, b) {
     const loadA = this.getProfesorLoadSummary(app, a.id);
     const loadB = this.getProfesorLoadSummary(app, b.id);
-    const affinityA = this.getProfesorTurnAffinity(a, grupo);
-    const affinityB = this.getProfesorTurnAffinity(b, grupo);
+    const affinityA = this.getProfesorTurnAffinity(app, a, grupo);
+    const affinityB = this.getProfesorTurnAffinity(app, b, grupo);
     const fitnessA = getFitness(a);
     const fitnessB = getFitness(b);
     const overloadA = Math.max(0, loadA.grupos - (minGroups + 1));
@@ -763,10 +750,10 @@ const GroupService = {
     };
 
     const sameTurnCandidates = compatibles.filter(
-      (profesor) => this.getProfesorTurnAffinity(profesor, grupo) === 0,
+      (profesor) => this.getProfesorTurnAffinity(app, profesor, grupo) === 0,
     );
     const crossTurnCandidates = compatibles.filter(
-      (profesor) => this.getProfesorTurnAffinity(profesor, grupo) === 1,
+      (profesor) => this.getProfesorTurnAffinity(app, profesor, grupo) === 1,
     );
 
     let chosen = null;
@@ -881,8 +868,8 @@ const GroupService = {
     };
   },
 
-  isProfesorCompatibleWithGrupoTurno(profesor, grupo) {
-    return Number.isFinite(this.getProfesorTurnAffinity(profesor, grupo));
+  isProfesorCompatibleWithGrupoTurno(app, profesor, grupo) {
+    return Number.isFinite(this.getProfesorTurnAffinity(app, profesor, grupo));
   },
 
   getSuggestedProfesor(app, grupo, asignaturaId) {

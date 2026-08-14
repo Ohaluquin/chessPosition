@@ -24,8 +24,9 @@
                     </button>
                     <div class="menu-panel">
                         <ul class="menu-list">
-                            <li><button id="btn-import" class="menu-item">Importar JSON</button></li>
-                            <li><button id="btn-load-template" class="menu-item">Cargar plantilla</button></li>
+                            <li><button id="btn-import" class="menu-item">Importar JSON de trabajo</button></li>
+                            <li><button id="btn-load-template" class="menu-item">Cargar plantilla fija</button></li>
+                            <li><button id="btn-edit-config" class="menu-item">Editar JSON de trabajo</button></li>
                             <li><button id="btn-export" class="menu-item">Exportar JSON</button></li>
                             <li><button id="btn-print-grupos" class="menu-item">Grupos HTML</button></li>
                             <li><button id="btn-print-profes" class="menu-item">Profesores HTML</button></li>
@@ -193,6 +194,18 @@
                         </label>
                     </div>
 
+                    <div class="prof-work-window">
+                        <div>
+                            <label for="prof-work-start">Horario excepcional</label>
+                            <input id="prof-work-start" type="time" />
+                        </div>
+                        <div>
+                            <label for="prof-work-end">hasta</label>
+                            <input id="prof-work-end" type="time" />
+                        </div>
+                        <small id="prof-work-window-help">Déjalo vacío para usar el horario normal de su turno.</small>
+                    </div>
+
                     <div class="row" style="display:flex; gap:10px; justify-content:flex-end;">
                         <button id="btn-prof-save" class="btn-primary">Guardar Profesor</button>
                     </div>
@@ -258,12 +271,80 @@
                     <option value="A">Semestre impar</option>
                     <option value="B">Semestre par</option>
                 </select>
-                <small>Semestre impar carga <code>semestre_A.json</code> y semestre par carga <code>semestre_B.json</code>.</small>
+                <small>La plantilla incluida nunca se modifica. Se abre una copia que puedes ajustar y exportar como tu propio JSON de trabajo.</small>
             </div>
 
             <div class="modal-actions">
                 <button id="btn-cancel-load-template">Cancelar</button>
                 <button id="btn-confirm-load-template" class="btn-primary">Cargar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dialog-config" class="modal">
+        <div class="modal-content config-modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Editar JSON de trabajo</h2>
+            <p class="config-notice">
+                Los cambios se aplican únicamente a la copia abierta en este navegador. Las plantillas incluidas en
+                GitHub Pages permanecen intactas. Al terminar, usa <strong>Exportar JSON</strong> para guardar tu trabajo.
+            </p>
+
+            <section class="config-section">
+                <h3>Datos generales</h3>
+                <div class="config-fields config-fields-general">
+                    <label>Nombre del archivo de trabajo
+                        <input id="config-name" type="text">
+                    </label>
+                    <label>Periodo
+                        <select id="config-period">
+                            <option value="impar">Semestre impar</option>
+                            <option value="par">Semestre par</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="config-section">
+                <h3>Horarios por turno</h3>
+                <p class="config-help">
+                    Los profesores de distinto turno siguen siendo válidos cuando su horario laboral se cruza con el
+                    horario del grupo. La asignación automática solo los usa como segunda preferencia.
+                </p>
+                <div class="config-window-grid">
+                    <strong>Tipo</strong><strong>Inicio</strong><strong>Fin</strong>
+                    <label>Grupo matutino</label><input id="config-group-matutino-start" type="time"><input id="config-group-matutino-end" type="time">
+                    <label>Grupo vespertino</label><input id="config-group-vespertino-start" type="time"><input id="config-group-vespertino-end" type="time">
+                    <label>Profesor matutino</label><input id="config-professor-matutino-start" type="time"><input id="config-professor-matutino-end" type="time">
+                    <label>Profesor vespertino</label><input id="config-professor-vespertino-start" type="time"><input id="config-professor-vespertino-end" type="time">
+                </div>
+            </section>
+
+            <section class="config-section">
+                <div class="config-section-head">
+                    <div>
+                        <h3>Franjas optativas</h3>
+                        <p class="config-help">Define días, hora, duración, periodo, grado y turno de cada franja.</p>
+                    </div>
+                    <button id="btn-config-add-slot" type="button">Agregar franja</button>
+                </div>
+                <div id="config-optative-list" class="config-list"></div>
+            </section>
+
+            <section class="config-section">
+                <div class="config-section-head">
+                    <div>
+                        <h3>Reglas fijas</h3>
+                        <p class="config-help">Configura juntas, tutorías y bloqueos recurrentes.</p>
+                    </div>
+                    <button id="btn-config-add-rule" type="button">Agregar regla</button>
+                </div>
+                <div id="config-rules-list" class="config-list"></div>
+            </section>
+
+            <div class="modal-actions config-modal-actions">
+                <button id="btn-config-cancel" type="button">Cancelar</button>
+                <button id="btn-config-save" type="button" class="btn-primary">Aplicar a esta copia</button>
             </div>
         </div>
     </div>
@@ -283,6 +364,7 @@
     <script src="ui/teacher-view.js"></script>
     <script src="ui/aula-view.js"></script>
     <script src="ui/schedule-editor.js"></script>
+    <script src="ui/config-view.js"></script>
     <script src="data/template-bundles.js"></script>
     <script src="ui/app.js"></script>
 </body>

@@ -196,7 +196,7 @@ const ReportService = {
         });
       });
 
-    return this.buildRenderGrid(app, grupo.turno, sessionMap);
+    return this.buildRenderGrid(app, Rules.getGroupTimeWindow(app.data, grupo), sessionMap);
   },
 
   buildTeacherGrid(app, profesor) {
@@ -232,11 +232,15 @@ const ReportService = {
         });
       });
 
-    return this.buildRenderGrid(app, profesor.turno, sessionMap);
+    return this.buildRenderGrid(
+      app,
+      Rules.getProfessorTimeWindow(app.data, profesor),
+      sessionMap,
+    );
   },
 
-  buildRenderGrid(app, turno, sessionMap) {
-    const hourIndices = this.getVisibleHourIndices(app, turno);
+  buildRenderGrid(app, window, sessionMap) {
+    const hourIndices = this.getVisibleHourIndices(app, window);
     const dayCount = 5;
     const skip = new Set();
     const rows = [];
@@ -332,13 +336,10 @@ const ReportService = {
     return blocks;
   },
 
-  getVisibleHourIndices(app, turno) {
-    const inicio = turno === "vespertino" ? "14:00" : "08:00";
-    const fin = turno === "vespertino" ? "20:00" : "14:00";
-
+  getVisibleHourIndices(app, window) {
     return app.hours
       .map((label, index) => ({ label, index }))
-      .filter(({ label }) => label >= inicio && label < fin)
+      .filter(({ label }) => Rules.isHourWithinWindow(label, window))
       .map(({ index }) => index);
   },
 

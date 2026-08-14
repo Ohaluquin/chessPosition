@@ -157,6 +157,7 @@ const Persistence = {
           academiaId: d.academiaId ?? d.academias?.[0] ?? null,
           turno: d.turno ?? "matutino",
           activo: d.activo ?? true,
+          horarioLaboral: d.horarioLaboral ?? d.ventanaTrabajo ?? null,
         });
         profesor.disponibilidad = d.disponibilidad ?? {};
         profesor.gruposAsignados = Array.isArray(d.gruposAsignados)
@@ -214,6 +215,10 @@ const Persistence = {
     app.data = state.data;
     app.horario = state.horario;
     app.fileContext = fileContext;
+    const scheduleStart = app.data?.config?.horario?.inicio || "08:00";
+    const scheduleEnd = app.data?.config?.horario?.fin || "20:00";
+    const segmentMinutes = Number(app.data?.config?.segmentoMin) || 30;
+    app.hours = app.buildSlots(scheduleStart, scheduleEnd, segmentMinutes);
     app.currentView = { type: "GRUPO", entity: null };
     app.setupUI();
     app.updateTitle();
@@ -246,6 +251,28 @@ const Persistence = {
     if (!alreadyExists) {
       data.academias.unshift(new Academia(allId, "TODAS"));
     }
+  },
+
+  getBlockKey(block) {
+    return [block.scope, block.targetId ?? "", block.dia, block.hora].join("|");
+  },
+
+  buildDerivedSchedule(data) {
+    const derived = new Horario();
+    this.applyFixedRules(data, derived);
+    this.applyOptativeSlots(data, derived);
+    return derived;
+  },
+
+  rebuildDerivedBlocks(data, horario, previousData = data) {
+    const previousKeys = new Set(
+      this.buildDerivedSchedule(previousData).bloqueos.map((block) => this.getBlockKey(block)),
+    );
+    horario.bloqueos = (horario.bloqueos || []).filter(
+      (block) => !previousKeys.has(this.getBlockKey(block)),
+    );
+    this.applyFixedRules(data, horario);
+    this.applyOptativeSlots(data, horario);
   },
 
   applyFixedRules(data, horario) {
@@ -329,6 +356,11 @@ const Persistence = {
         return (data.academias || [])
           .map((academia) => academia.id)
           .filter((id) => id && id !== "__ALL__");
+      }
+
+      if (scope === "AULA") {
+        if (filters.aulaId) return [filters.aulaId];
+        return (data.aulas || []).map((aula) => aula.id).filter(Boolean);
       }
 
       return [];

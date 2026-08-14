@@ -10,10 +10,19 @@ const TeacherView = {
     const inpName = document.getElementById("prof-name");
     const selTurno = document.getElementById("prof-turno");
     const chkActivo = document.getElementById("prof-activo");
+    const workStart = document.getElementById("prof-work-start");
+    const workEnd = document.getElementById("prof-work-end");
+    const workHelp = document.getElementById("prof-work-window-help");
 
     if (inpName) inpName.value = profesor.nombre ?? "";
     if (selTurno) selTurno.value = profesor.turno ?? "matutino";
     if (chkActivo) chkActivo.checked = profesor.activo ?? true;
+    if (workStart) workStart.value = profesor.horarioLaboral?.inicio || "";
+    if (workEnd) workEnd.value = profesor.horarioLaboral?.fin || "";
+    if (workHelp) {
+      const defaultWindow = Rules.getConfiguredTimeWindow(app.data, "profesor", profesor.turno);
+      workHelp.textContent = `Déjalo vacío para usar ${defaultWindow.inicio}-${defaultWindow.fin}. El cruce de turnos es válido dentro del horario laboral.`;
+    }
 
     this.ensureGroupsUI(app);
     const groupsUI = document.getElementById("prof-groups-ui");
@@ -26,11 +35,8 @@ const TeacherView = {
       row.style.display = "";
     });
 
-    if (profesor.turno === "matutino") {
-      Views.setVisibleHours("08:00", "16:00");
-    } else {
-      Views.setVisibleHours("12:00", "20:00");
-    }
+    const workWindow = Rules.getProfessorTimeWindow(app.data, profesor);
+    Views.setVisibleHours(workWindow.inicio, workWindow.fin);
 
     const acadId = profesor.academiaId;
 
@@ -175,10 +181,23 @@ const TeacherView = {
     const inpName = document.getElementById("prof-name");
     const selTurno = document.getElementById("prof-turno");
     const chkActivo = document.getElementById("prof-activo");
+    const workStart = document.getElementById("prof-work-start");
+    const workEnd = document.getElementById("prof-work-end");
 
     if (inpName) p.nombre = inpName.value.trim() || p.nombre;
     if (selTurno) p.turno = selTurno.value;
     if (chkActivo) p.activo = chkActivo.checked;
+    const customStart = workStart?.value || "";
+    const customEnd = workEnd?.value || "";
+    if ((customStart && !customEnd) || (!customStart && customEnd)) {
+      alert("Completa ambas horas del horario excepcional o deja las dos vacías.");
+      return;
+    }
+    if (customStart && (!Rules.isValidTime(customStart) || !Rules.isValidTime(customEnd) || customStart >= customEnd)) {
+      alert("El horario excepcional del profesor no es válido.");
+      return;
+    }
+    p.horarioLaboral = customStart ? { inicio: customStart, fin: customEnd } : null;
 
     this.renderList(app);
     this.renderGroupsUI(app);
@@ -301,9 +320,16 @@ const TeacherView = {
         g,
         prof,
       );
+      const professorWindow = Rules.getProfessorTimeWindow(app.data, prof);
+      const groupWindow = Rules.getGroupTimeWindow(app.data, g);
+      const overlap = Rules.getTimeWindowIntersection(professorWindow, groupWindow);
+      const crossLabel =
+        prof.turno !== g.turno && overlap
+          ? ` · cruce ${overlap.inicio}-${overlap.fin}`
+          : "";
       const opt = document.createElement("option");
       opt.value = g.id;
-      opt.textContent = `${g.nombre} (${availableSubjects.length} sin profesor)`;
+      opt.textContent = `${g.nombre} (${availableSubjects.length} sin profesor${crossLabel})`;
       selDisp.appendChild(opt);
     });
 

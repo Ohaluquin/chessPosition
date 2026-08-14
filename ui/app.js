@@ -71,6 +71,19 @@ class App {
       console.warn("Carga de plantilla deshabilitada: falta #btn-load-template");
     }
 
+    const btnEditConfig = document.getElementById("btn-edit-config");
+    if (btnEditConfig) btnEditConfig.onclick = () => ConfigView.open(this);
+    const btnConfigSave = document.getElementById("btn-config-save");
+    if (btnConfigSave) btnConfigSave.onclick = () => ConfigView.save(this);
+    const btnConfigCancel = document.getElementById("btn-config-cancel");
+    if (btnConfigCancel) {
+      btnConfigCancel.onclick = () => Dialogs.close("dialog-config");
+    }
+    const btnConfigAddSlot = document.getElementById("btn-config-add-slot");
+    if (btnConfigAddSlot) btnConfigAddSlot.onclick = () => ConfigView.addOptativeSlot();
+    const btnConfigAddRule = document.getElementById("btn-config-add-rule");
+    if (btnConfigAddRule) btnConfigAddRule.onclick = () => ConfigView.addFixedRule();
+
     const btnAuto = document.getElementById("btn-auto-schedule");
     if (btnAuto) btnAuto.onclick = () => this.runAutoSchedule();
     const btnAutoAll = document.getElementById("btn-auto-schedule-all");
@@ -218,7 +231,9 @@ class App {
   promptLoadTemplate() {
     const currentKey =
       this.fileContext?.templateKey ||
-      (this.data?.meta?.periodo === "impar" ? "A" : "B");
+      (this.data?.meta?.periodo
+        ? this.data.meta.periodo === "impar" ? "A" : "B"
+        : "A");
     const select = document.getElementById("select-template-period");
     if (!select) {
       alert("No se encontro el selector de plantillas.");

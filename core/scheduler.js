@@ -344,15 +344,14 @@ class Scheduler {
   }
 
   getGroupTimeWindow(grupo) {
-    if (grupo.turno === "vespertino") {
-      return { inicio: "14:00", fin: "20:00" };
-    }
-    return { inicio: "08:00", fin: "14:00" };
+    return Rules.getGroupTimeWindow(this.dataStore.data, grupo);
   }
 
   getPreferredGroupEnd(grupo) {
-    if (grupo.turno === "vespertino") return "19:30";
-    return "14:00";
+    const window = this.getGroupTimeWindow(grupo);
+    if (grupo.turno !== "vespertino") return window.fin;
+    const endIndex = this.dataStore.hours.indexOf(window.fin);
+    return this.dataStore.hours[Math.max(0, endIndex - 1)] || window.fin;
   }
 
   getApplicableTutoriaRules(grupo) {
@@ -405,16 +404,10 @@ class Scheduler {
   isProfessorAvailableForHour(profesor, hourIndex) {
     const label = this.dataStore.hours[hourIndex];
     if (!label) return false;
-
-    if (profesor?.turno === "matutino") {
-      return label >= "08:00" && label < "16:00";
-    }
-
-    if (profesor?.turno === "vespertino") {
-      return label >= "12:00" && label < "20:00";
-    }
-
-    return true;
+    return Rules.isHourWithinWindow(
+      label,
+      Rules.getProfessorTimeWindow(this.dataStore.data, profesor),
+    );
   }
 
   getAllowedHourIndices(grupo, asignaturaId = null) {
@@ -1297,7 +1290,7 @@ class Scheduler {
       score += edgeDistance * 0.7;
 
       if (grupo.turno === "vespertino") {
-        const hardEndIndex = this.dataStore.hours.indexOf("20:00") - 1;
+        const hardEndIndex = this.dataStore.hours.indexOf(window.fin) - 1;
         if (last >= hardEndIndex) score += 4;
       }
     }

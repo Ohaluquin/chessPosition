@@ -17,6 +17,7 @@ El proyecto funciona únicamente en el navegador y no requiere servidor, compila
 - Vistas de horarios por grupo, profesor, aula y academia.
 - Exportación de horarios por grupo o profesor en HTML y del concentrado de Escolares en TXT.
 - Planeador estudiantil para combinar materias y ordenar alternativas según preferencias.
+- Editor de la copia de trabajo para horarios por turno, franjas optativas y reglas fijas.
 
 ## Inicio rápido
 
@@ -35,15 +36,16 @@ Después visita `http://localhost:8000/`.
 
 ## Flujo recomendado
 
-1. Abre `index.html` y carga la plantilla del semestre impar o par, o importa un JSON de trabajo.
-2. Revisa academias, profesores y aulas.
-3. Crea o ajusta los grupos y su plan de materias.
-4. En los grupos optativos, asigna las materias, el profesor y una o más franjas permitidas.
-5. Autoasigna profesores o corrige sus asignaciones manualmente.
-6. Programa sesiones desde la cuadrícula, autoprograma el grupo seleccionado o procesa todos los grupos.
-7. Usa `LOCK` en los bloques que no deban moverse durante una reoptimización.
-8. Autoasigna las aulas faltantes y revisa los horarios desde las distintas vistas.
-9. Exporta el JSON actualizado como respaldo y genera los reportes necesarios.
+1. Abre `index.html` y carga la plantilla fija del semestre impar o par, o importa un JSON de trabajo anterior.
+2. Usa **Editar JSON de trabajo** para ajustar horarios por turno, franjas optativas o reglas fijas sin modificar la plantilla incluida.
+3. Revisa academias, profesores y aulas.
+4. Crea o ajusta los grupos y su plan de materias.
+5. En los grupos optativos, asigna las materias, el profesor y una o más franjas permitidas.
+6. Autoasigna profesores o corrige sus asignaciones manualmente.
+7. Programa sesiones desde la cuadrícula, autoprograma el grupo seleccionado o procesa todos los grupos.
+8. Usa `LOCK` en los bloques que no deban moverse durante una reoptimización.
+9. Autoasigna las aulas faltantes y revisa los horarios desde las distintas vistas.
+10. Exporta el JSON actualizado como respaldo y genera los reportes necesarios.
 
 Antes de cargar una plantilla o ejecutar una reasignación masiva, conserva una copia del JSON de trabajo.
 
@@ -52,6 +54,9 @@ Antes de cargar una plantilla o ejecutar una reasignación masiva, conserva una 
 - La configuración actual trabaja con segmentos de 30 minutos entre las 08:00 y las 20:00.
 - Los grupos matutinos ocupan normalmente la franja 08:00–14:00 y los vespertinos la franja 14:00–20:00.
 - Los profesores matutinos pueden atender de 08:00 a 16:00 y los vespertinos de 12:00 a 20:00.
+- Un profesor de turno distinto es válido por defecto cuando su horario laboral se cruza con el del grupo: normalmente 12:00–14:00 para un profesor vespertino en un grupo matutino y 14:00–16:00 en el caso inverso.
+- La asignación automática prefiere profesores del mismo turno; la asignación manual muestra también los cruces válidos y su intervalo disponible.
+- Cada profesor puede tener un `horarioLaboral` excepcional que sustituye la ventana normal de su turno.
 - Una sesión se rechaza si genera conflicto de grupo, profesor o aula, invade un bloqueo o incumple la franja de una optativa.
 - Las materias que requieren laboratorio distinguen sus bloques de laboratorio de las clases regulares.
 - La autoasignación de aulas completa únicamente las sesiones que todavía no tienen aula.
@@ -65,6 +70,8 @@ La aplicación incluye plantillas para ambos periodos:
 - `data/semestre_A.json`: semestre impar.
 - `data/semestre_B.json`: semestre par.
 - `data/template-bundles.js`: copia embebida de las plantillas para poder abrir la aplicación sin servidor.
+
+Las plantillas son inmutables durante el uso de la aplicación. Al cargarlas se crea una copia en memoria: cada usuario puede editarla y descargarla como JSON sin cambiar los archivos publicados ni afectar a otras personas. **Importar JSON de trabajo** permite continuar posteriormente desde esa copia personalizada.
 
 Al exportar, la aplicación genera el formato versión 5 e incluye el catálogo y la configuración junto con `sesiones` y `bloqueos`. La importación mantiene compatibilidad con archivos versión 4:
 
