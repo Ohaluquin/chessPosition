@@ -49,7 +49,43 @@
                                                                       "fin":  "20:00"
                                                                   }
                                                }
-                              }
+                              },
+                   "aulasPorGrupo":  {
+                                      "201": "a15",
+                                      "211": "a15",
+                                      "202": "a14",
+                                      "212": "a14",
+                                      "203": "a13",
+                                      "213": "a13",
+                                      "204": "a12",
+                                      "214": "a12",
+                                      "205": "a11",
+                                      "215": "a11",
+                                      "401": "a4",
+                                      "411": "a4",
+                                      "402": "a5",
+                                      "412": "a5",
+                                      "403": "a6",
+                                      "413": "a6",
+                                      "404": "a7",
+                                      "414": "a7",
+                                      "601": "a1",
+                                      "611": "a1",
+                                      "602": "a2",
+                                      "612": "a2",
+                                      "603": "a3",
+                                      "613": "a3"
+                                  },
+                   "preferenciaAulasRecursamiento":  {
+                                                       "impar":  {
+                                                                    "matutino": ["a8", "a3", "a7"],
+                                                                    "vespertino": ["a8", "a3", "a7"]
+                                                                },
+                                                       "par":  {
+                                                                  "matutino": ["a8", "a9", "a10"],
+                                                                  "vespertino": ["a8", "a9", "a10"]
+                                                              }
+                                                   }
                },
     "reglasFijas":  [
                         {
@@ -142,6 +178,19 @@
                                  "dias":  [
                                               "lunes",
                                               "jueves"
+                                          ],
+                                 "motivo":  "Optativa 6to"
+                             },
+                             {
+                                 "id":  "opt_6_f4",
+                                 "nombre":  "Optativas 6to - Franja 4",
+                                 "periodo":  "par",
+                                 "gradoObjetivo":  6,
+                                 "inicio":  "18:00",
+                                 "duracionMin":  90,
+                                 "dias":  [
+                                              "lunes",
+                                              "miercoles"
                                           ],
                                  "motivo":  "Optativa 6to"
                              }

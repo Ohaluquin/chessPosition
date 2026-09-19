@@ -186,6 +186,7 @@ const Persistence = {
             s.hora,
             s.tipoSesion ?? "clase",
             s.locked === true,
+            s.blockId ?? null,
           ),
         );
       });

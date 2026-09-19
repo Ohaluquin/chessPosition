@@ -113,6 +113,45 @@ const GroupView = {
     return `<div class="session-badges">${badges.join("")}</div>`;
   },
 
+  ensureGroupLockActions(app, grupo) {
+    const actions = document.querySelector("#group-editor .group-editor-actions");
+    if (!actions) return;
+
+    const createButton = (label, locked) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.groupLockAction = locked ? "lock" : "unlock";
+      button.textContent = label;
+      button.onclick = () => this.setGroupLock(app, grupo, locked);
+      actions.appendChild(button);
+    };
+    if (!actions.querySelector('[data-group-lock-action="lock"]')) {
+      createButton("LOCK todo el grupo", true);
+    }
+    if (!actions.querySelector('[data-group-lock-action="unlock"]')) {
+      createButton("Desbloquear grupo", false);
+    }
+    actions.querySelector('[data-group-lock-action="lock"]').onclick = () =>
+      this.setGroupLock(app, grupo, true);
+    actions.querySelector('[data-group-lock-action="unlock"]').onclick = () =>
+      this.setGroupLock(app, grupo, false);
+    actions.querySelectorAll("[data-group-lock-action]").forEach((button) => {
+      button.style.display = app.groupEditorIsDraft ? "none" : "inline-block";
+    });
+  },
+
+  setGroupLock(app, grupo, locked) {
+    if (!grupo || app.groupEditorIsDraft) return;
+    const sessions = (app.horario.sesiones || []).filter(
+      (sesion) => sesion.grupoId === grupo.id,
+    );
+    sessions.forEach((sesion) => {
+      sesion.locked = locked;
+    });
+    this.renderEditor(app);
+    app.refreshGrid();
+  },
+
   getSubjectColor(app, grupo, asignaturaId) {
     const palette = [
       { bg: "#fef3c7", border: "#d97706" },
@@ -201,6 +240,7 @@ const GroupView = {
     if (cancelButton) cancelButton.style.display = app.groupEditorIsDraft ? "inline-block" : "none";
     const saveButton = document.getElementById("btn-group-save");
     if (saveButton) saveButton.textContent = app.groupEditorIsDraft ? "Crear Grupo" : "Guardar Grupo";
+    this.ensureGroupLockActions(app, grupo);
 
     if (!(app.groupEditorPendingPlanIds instanceof Set)) {
       app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(grupo));

@@ -163,6 +163,7 @@ const ClassroomService = {
         last.profesorId === sesion.profesorId &&
         last.dia === sesion.dia &&
         last.tipoSesion === (sesion.tipoSesion || "clase") &&
+        ((!last.blockId && !sesion.blockId) || last.blockId === sesion.blockId) &&
         last.aulaId === (sesion.aulaId || null) &&
         last.hours[last.hours.length - 1] + 1 === sesion.hora
       ) {
@@ -177,6 +178,7 @@ const ClassroomService = {
         asignaturaId: sesion.asignaturaId,
         asignatura,
         profesorId: sesion.profesorId,
+        blockId: sesion.blockId || null,
         dia: sesion.dia,
         tipoSesion: sesion.tipoSesion || "clase",
         turno: this.getTurno(grupo),
@@ -255,6 +257,35 @@ const ClassroomService = {
     return this.getNormalRoomsByCycle(app).todas.map((aula) => aula.id);
   },
 
+  getConfiguredHomeRoom(app, grupo) {
+    const mapping = app.data?.config?.aulasPorGrupo;
+    if (!mapping || !grupo) return null;
+    const roomId = mapping[grupo.id] || mapping[grupo.nombre];
+    if (!roomId) return null;
+    return this.getNormalRooms(app).some((aula) => aula.id === roomId) ? roomId : null;
+  },
+
+  getRecursamientoRoomIds(app, turno) {
+    const periodo = this.getPeriodo(app);
+    const configured = app.data?.config?.preferenciaAulasRecursamiento;
+    const configuredForPeriod = configured?.[periodo];
+    const configuredForTurn = configuredForPeriod?.[turno];
+    if (Array.isArray(configuredForTurn) && configuredForTurn.length > 0) {
+      return configuredForTurn.filter((roomId) =>
+        this.getNormalRooms(app).some((aula) => aula.id === roomId),
+      );
+    }
+
+    return periodo === "par"
+      ? ["a8", "a9", "a10"]
+      : ["a8", "a3", "a7"];
+  },
+
+  getGroupSessionCount(app, grupoId) {
+    return (app.horario?.sesiones || []).filter((sesion) => sesion.grupoId === grupoId)
+      .length;
+  },
+
   getFreeHomeRoom(registry, turno, preferredRoomIds, fallbackRoomIds = []) {
     const used = registry[turno];
     const orderedIds = [...preferredRoomIds, ...fallbackRoomIds].filter(
@@ -279,9 +310,24 @@ const ClassroomService = {
       });
   },
 
-  reserveHomeRoomsForGroups(app, groups, registry) {
-    groups.forEach((grupo) => {
-      const preferred = this.getPreferredCycleRoomIds(app, grupo.grado);
+  reserveHomeRoomsForGroups(app, groups, registry, { purpose = "structure" } = {}) {
+    const orderedGroups = [...groups];
+    if (purpose === "recursamiento") {
+      orderedGroups.sort((a, b) => {
+        const workload = this.getGroupSessionCount(app, b.id) - this.getGroupSessionCount(app, a.id);
+        if (workload !== 0) return workload;
+        if (a.turno !== b.turno) return a.turno.localeCompare(b.turno, "es");
+        return a.nombre.localeCompare(b.nombre, "es");
+      });
+    }
+
+    orderedGroups.forEach((grupo) => {
+      const configured = purpose === "structure" ? this.getConfiguredHomeRoom(app, grupo) : null;
+      const preferred = configured
+        ? [configured]
+        : purpose === "recursamiento"
+          ? this.getRecursamientoRoomIds(app, this.getTurno(grupo))
+          : this.getPreferredCycleRoomIds(app, grupo.grado);
       const fallback = this.getAllNormalRoomIds(app);
       const roomId = this.getFreeHomeRoom(registry, this.getTurno(grupo), preferred, fallback);
       if (roomId) {
@@ -377,7 +423,9 @@ const ClassroomService = {
   assignRecursamientoBlocks(app, blocks, registry, summary) {
     const { recursamientoGrades } = this.getCycleOrder(app);
     const recursamientoGroups = this.getGroupsByGrades(app, recursamientoGrades);
-    this.reserveHomeRoomsForGroups(app, recursamientoGroups, registry);
+    this.reserveHomeRoomsForGroups(app, recursamientoGroups, registry, {
+      purpose: "recursamiento",
+    });
     this.assignHomeRoomBlocks(
       app,
       blocks,

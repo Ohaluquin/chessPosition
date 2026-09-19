@@ -11,13 +11,15 @@ El proyecto funciona únicamente en el navegador y no requiere servidor, compila
 - Asignación automática de profesores con balance de carga y compatibilidad de turno.
 - Programación manual por bloques y autoprogramación de un grupo o de todos los grupos.
 - Variantes de duración para distribuir los segmentos semanales de una asignatura.
-- Restricciones por grupo, profesor, academia y aula, además de sesiones fijadas con `LOCK`.
+- Restricciones por grupo, profesor, academia y aula, además de sesiones fijadas con `LOCK` y acciones para bloquear o desbloquear todo un grupo.
 - Tratamiento separado de clases, laboratorios y horas de estudio.
 - Autoasignación de aulas sin reemplazar las aulas que ya fueron elegidas.
 - Vistas de horarios por grupo, profesor, aula y academia.
 - Exportación de horarios por grupo o profesor en HTML y del concentrado de Escolares en TXT.
 - Planeador estudiantil para combinar materias y ordenar alternativas según preferencias.
 - Editor de la copia de trabajo para horarios por turno, franjas optativas y reglas fijas.
+- Variantes de ciencias con laboratorio, estudio, clases de 90 minutos y clases extendidas de 120 minutos.
+- Autoasignación de aulas con mapa mayoritario configurable por grupo y preferencias de respaldo para recursamiento.
 
 ## Inicio rápido
 
@@ -61,7 +63,11 @@ Antes de cargar una plantilla o ejecutar una reasignación masiva, conserva una 
 - Las materias que requieren laboratorio distinguen sus bloques de laboratorio de las clases regulares.
 - La autoasignación de aulas completa únicamente las sesiones que todavía no tienen aula.
 
-Las reglas y los intervalos efectivos provienen del objeto `config` y de las colecciones `reglasFijas` y `franjasOptativas` del JSON cargado.
+Las reglas y los intervalos efectivos provienen del objeto `config` y de las colecciones `reglasFijas` y `franjasOptativas` del JSON cargado. Dentro de `config` se pueden ajustar `aulasPorGrupo` para cambiar el aula principal de un grupo y `preferenciaAulasRecursamiento` para definir el orden de respaldo por periodo y turno.
+
+Las asignaturas que requieren laboratorio exponen cuatro estructuras semanales: laboratorio + dos clases + estudio; laboratorio + dos clases; tres clases sin laboratorio; y laboratorio + dos clases de 120 minutos. El estudio se puede seleccionar manualmente cuando pertenece a la estructura elegida; el programador automático procura colocarlo después de las clases.
+
+Las plantillas incluyen cuatro franjas de optativas. La cuarta ocurre los lunes y miércoles a las 18:00, con duración de 90 minutos.
 
 ## Archivos de datos
 

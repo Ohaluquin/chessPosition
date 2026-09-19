@@ -33,6 +33,7 @@ vm.runInContext(
     GroupService,
     Grupo,
     Profesor,
+    Sesion,
     Horario,
     Scheduler
   };`,
@@ -47,9 +48,20 @@ const {
   GroupService,
   Grupo,
   Profesor,
+  Sesion,
   Horario,
   Scheduler,
 } = context.testApi;
+
+const blockHorario = new Horario();
+blockHorario.addSesion(new Sesion("g-block", "fisica_i", "t019", null, 0, 2, "clase", false, "block-1"));
+blockHorario.addSesion(new Sesion("g-block", "fisica_i", "t019", null, 0, 3, "clase", true, "block-1"));
+blockHorario.addSesion(new Sesion("g-block", "fisica_i", "t019", null, 0, 4, "clase", false, "block-2"));
+assert.equal(
+  SessionService.getBlockSessions({ horario: blockHorario }, "g-block", 0, 3).length,
+  2,
+  "editing a block must not absorb adjacent sessions from another block",
+);
 
 const realFile = [
   path.join(root, "prueba_semestre_A_nuevo.json 3.json"),
@@ -67,6 +79,15 @@ const app = {
       total % 60,
     ).padStart(2, "0")}`;
   }),
+};
+const templateData = JSON.parse(
+  fs.readFileSync(path.join(root, "data", "semestre_A.json"), "utf8").replace(/^\uFEFF/, ""),
+);
+const templateState = Persistence.hydrateState(templateData);
+const templateApp = {
+  data: templateState.data,
+  horario: templateState.horario,
+  hours: app.hours,
 };
 
 assert.equal(
@@ -115,6 +136,58 @@ assert.ok(
   physicsLabRooms.length > 0 && physicsLabRooms.every((room) => room.tipo === "laboratorio"),
   "Physics lab sessions must use lab rooms",
 );
+
+const physics = templateApp.data.asignaturas.find((subject) => subject.id === "fisica_i");
+const scienceVariants = physics.getBlockVariants();
+assert.equal(
+  scienceVariants.length,
+  4,
+  "lab sciences must expose the four approved weekly structures",
+);
+assert.equal(
+  JSON.stringify(scienceVariants.map((variant) => variant.blocks.map((block) => `${block.kind}:${block.duration}`))),
+  JSON.stringify([
+    ["laboratorio:3", "clase:3", "clase:3"],
+    ["laboratorio:3", "clase:3", "clase:3", "estudio:2"],
+    ["clase:3", "clase:3", "clase:3"],
+    ["laboratorio:3", "clase:4", "clase:4"],
+  ]),
+  "science variants must include the three original options and the 120-minute option",
+);
+assert.equal(templateApp.data.franjasOptativas.length, 4, "the fixed template must contain four optative slots");
+assert.equal(
+  templateApp.data.franjasOptativas.at(-1).inicio,
+  "18:00",
+  "the fourth optative slot must start at 18:00",
+);
+
+const structureRegistry = ClassroomService.createHomeRoomRegistry(templateApp);
+ClassroomService.reserveHomeRoomsForGroups(
+  templateApp,
+  templateApp.data.grupos.filter((group) => ["101", "111", "102", "112", "301", "501"].includes(group.nombre)),
+  structureRegistry,
+);
+assert.equal(structureRegistry.grupoAula.get("g101"), "a15", "odd 101 must use Aula 15");
+assert.equal(structureRegistry.grupoAula.get("g111"), "a15", "odd 111 must share the Aula 15 pattern");
+assert.equal(structureRegistry.grupoAula.get("g102"), "a14", "odd 102 must use Aula 14");
+assert.equal(structureRegistry.grupoAula.get("g301"), "a4", "odd 301 must use Aula 4");
+assert.equal(structureRegistry.grupoAula.get("g501"), "a1", "odd 501 must use Aula 1");
+
+const evenData = JSON.parse(
+  fs.readFileSync(path.join(root, "data", "semestre_B.json"), "utf8").replace(/^\uFEFF/, ""),
+);
+const evenState = Persistence.hydrateState(evenData);
+const evenApp = { data: evenState.data, horario: evenState.horario, hours: app.hours };
+const evenRegistry = ClassroomService.createHomeRoomRegistry(evenApp);
+ClassroomService.reserveHomeRoomsForGroups(
+  evenApp,
+  evenApp.data.grupos.filter((group) => ["201", "211", "401", "601"].includes(group.nombre)),
+  evenRegistry,
+);
+assert.equal(evenRegistry.grupoAula.get("g201"), "a15", "even 201 must use Aula 15");
+assert.equal(evenRegistry.grupoAula.get("g211"), "a15", "even 211 must share the Aula 15 pattern");
+assert.equal(evenRegistry.grupoAula.get("g401"), "a4", "even 401 must use Aula 4");
+assert.equal(evenRegistry.grupoAula.get("g601"), "a1", "even 601 must use Aula 1");
 
 const optativeGroup = new Grupo({
   id: "g521",

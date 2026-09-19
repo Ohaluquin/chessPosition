@@ -270,7 +270,52 @@ class App {
       typeof structuredClone === "function" ?
         structuredClone(bundledTemplate)
       : JSON.parse(JSON.stringify(bundledTemplate));
+    this.applyBundledTemplateDefaults(jsonData, templateKey);
     this.loadTemplateFromJson(jsonData, templateInfo);
+  }
+
+  applyBundledTemplateDefaults(jsonData, templateKey) {
+    const roomMaps = {
+      A: {
+        101: "a15", 111: "a15", 102: "a14", 112: "a14", 103: "a13", 113: "a13",
+        104: "a12", 114: "a12", 105: "a11", 115: "a11", 106: "a10", 116: "a10",
+        107: "a9", 117: "a9", 301: "a4", 311: "a4", 302: "a5", 312: "a5",
+        303: "a6", 313: "a6", 304: "a7", 314: "a7", 501: "a1", 511: "a1",
+        502: "a2", 512: "a2", 503: "a3", 513: "a3",
+      },
+      B: {
+        201: "a15", 211: "a15", 202: "a14", 212: "a14", 203: "a13", 213: "a13",
+        204: "a12", 214: "a12", 205: "a11", 215: "a11", 401: "a4", 411: "a4",
+        402: "a5", 412: "a5", 403: "a6", 413: "a6", 404: "a7", 414: "a7",
+        601: "a1", 611: "a1", 602: "a2", 612: "a2", 603: "a3", 613: "a3",
+      },
+    };
+    const grado = templateKey === "B" ? 6 : 5;
+    const period = templateKey === "B" ? "par" : "impar";
+    const slotId = `opt_${grado}_f4`;
+    jsonData.config = {
+      ...(jsonData.config || {}),
+      aulasPorGrupo: roomMaps[templateKey],
+      preferenciaAulasRecursamiento: {
+        impar: { matutino: ["a8", "a3", "a7"], vespertino: ["a8", "a3", "a7"] },
+        par: { matutino: ["a8", "a9", "a10"], vespertino: ["a8", "a9", "a10"] },
+      },
+    };
+    if (!(jsonData.franjasOptativas || []).some((slot) => slot.id === slotId)) {
+      jsonData.franjasOptativas = [
+        ...(jsonData.franjasOptativas || []),
+        {
+          id: slotId,
+          nombre: `Optativas ${grado}to - Franja 4`,
+          periodo: period,
+          gradoObjetivo: grado,
+          inicio: "18:00",
+          duracionMin: 90,
+          dias: ["lunes", "miercoles"],
+          motivo: `Optativa ${grado}to`,
+        },
+      ];
+    }
   }
 
   _setActiveViewButton(type) {

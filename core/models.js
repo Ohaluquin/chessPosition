@@ -135,6 +135,52 @@ class Asignatura {
       });
   }
 
+  buildScienceVariants() {
+    if (!this.requiereLaboratorio) return [];
+
+    const baseDuration = Math.max(1, this.duracionSegmentos || 1);
+    const longClassDuration = Math.max(baseDuration, 4);
+    return [
+      {
+        key: "ciencias_lab_clase_estudio",
+        label: "Laboratorio + 2 clases + estudio",
+        blocks: [
+          { kind: "laboratorio", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+          { kind: "estudio", duration: 2 },
+        ],
+      },
+      {
+        key: "ciencias_lab_clases",
+        label: "Laboratorio + 2 clases",
+        blocks: [
+          { kind: "laboratorio", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+        ],
+      },
+      {
+        key: "ciencias_tres_clases",
+        label: "3 clases sin laboratorio",
+        blocks: [
+          { kind: "clase", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+          { kind: "clase", duration: baseDuration },
+        ],
+      },
+      {
+        key: "ciencias_lab_clases_largas",
+        label: "Laboratorio + 2 clases de 120 min",
+        blocks: [
+          { kind: "laboratorio", duration: baseDuration },
+          { kind: "clase", duration: longClassDuration },
+          { kind: "clase", duration: longClassDuration },
+        ],
+      },
+    ];
+  }
+
   getBlockVariants() {
     const primary = {
       key: "default",
@@ -147,7 +193,11 @@ class Asignatura {
       primary.blocks.map((block) => `${block.kind}:${block.duration}`).join("|"),
     ]);
 
-    [...this.weeklyBlockVariants, ...this.buildClassOnlyVariants()].forEach((variant) => {
+    [
+      ...this.weeklyBlockVariants,
+      ...this.buildScienceVariants(),
+      ...this.buildClassOnlyVariants(),
+    ].forEach((variant) => {
       const signature = variant.blocks
         .map((block) => `${block.kind}:${block.duration}`)
         .join("|");
@@ -291,6 +341,7 @@ class Sesion {
     hora,
     tipoSesion = "clase",
     locked = false,
+    blockId = null,
   ) {
     this.grupoId = grupoId;
     this.asignaturaId = asignaturaId;
@@ -300,6 +351,7 @@ class Sesion {
     this.hora = hora;
     this.tipoSesion = tipoSesion;
     this.locked = locked === true;
+    this.blockId = blockId || null;
   }
 }
 

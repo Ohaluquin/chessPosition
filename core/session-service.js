@@ -67,6 +67,17 @@ const SessionService = {
     const seed = this.findGroupSession(app, grupoId, day, hour);
     if (!seed) return [];
 
+    if (seed.blockId) {
+      return app.horario.sesiones
+        .filter(
+          (sesion) =>
+            sesion.grupoId === grupoId &&
+            sesion.dia === day &&
+            sesion.blockId === seed.blockId,
+        )
+        .sort((a, b) => a.hora - b.hora);
+    }
+
     const sameTrack = app.horario.sesiones.filter(
       (sesion) =>
         sesion.grupoId === grupoId &&
@@ -74,8 +85,7 @@ const SessionService = {
         sesion.asignaturaId === seed.asignaturaId &&
         sesion.profesorId === seed.profesorId &&
         sesion.aulaId === seed.aulaId &&
-        (sesion.tipoSesion ?? "clase") === (seed.tipoSesion ?? "clase") &&
-        (sesion.locked === true) === (seed.locked === true),
+        (sesion.tipoSesion ?? "clase") === (seed.tipoSesion ?? "clase"),
     );
 
     const hours = new Set(sameTrack.map((sesion) => sesion.hora));
@@ -104,6 +114,11 @@ const SessionService = {
     }
     if (tipoSesion === "estudio") return 2;
     return Math.max(1, asignatura?.duracionSegmentos || 1);
+  },
+
+  createBlockId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return `block_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   },
 
   removeBlockSessions(app, grupoId, day, hour) {
@@ -168,13 +183,12 @@ const SessionService = {
     }
 
     const tipoSesion = payload.tipoSesion || "clase";
-    const allowedKinds = ["clase"];
-    if ((asignatura.estudio?.mode || "none") === "sesion_separate") {
-      allowedKinds.push("estudio");
-    }
-    if (asignatura.requiereLaboratorio) {
-      allowedKinds.push("laboratorio");
-    }
+    const requirement = GroupService.getRequirementStatus(app, grupo, asignatura, {
+      useVariants: true,
+    });
+    const allowedKinds = [
+      ...new Set((requirement.requiredBlocks || []).map((block) => block.kind || "clase")),
+    ];
 
     if (!allowedKinds.includes(tipoSesion)) {
       return {
@@ -183,7 +197,6 @@ const SessionService = {
       };
     }
 
-    const requirement = GroupService.getRequirementStatus(app, grupo, asignatura);
     const expectedDuration = this.getBlockDuration(app, grupo, asignatura, tipoSesion);
     const matchingPending = requirement.pendingBlocks.find(
       (block) => block.kind === tipoSesion && block.duration === expectedDuration,
@@ -297,6 +310,7 @@ const SessionService = {
       return validation;
     }
 
+    const blockId = this.createBlockId();
     validation.hourRange.forEach((hourIndex) => {
       app.horario.addSesion(
         new Sesion(
@@ -308,6 +322,7 @@ const SessionService = {
           hourIndex,
           payload.tipoSesion || "clase",
           payload.locked === true,
+          blockId,
         ),
       );
     });

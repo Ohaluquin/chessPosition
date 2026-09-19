@@ -792,6 +792,7 @@ class Scheduler {
         last.profesorId === sesion.profesorId &&
         last.kind === (sesion.tipoSesion ?? "clase") &&
         last.day === sesion.dia &&
+        ((!last.blockId && !sesion.blockId) || last.blockId === sesion.blockId) &&
         last.endHour + 1 === sesion.hora
       ) {
         last.endHour = sesion.hora;
@@ -804,6 +805,7 @@ class Scheduler {
         asignaturaId: sesion.asignaturaId,
         profesorId: sesion.profesorId,
         kind: sesion.tipoSesion ?? "clase",
+        blockId: sesion.blockId || null,
         locked: sesion.locked === true,
         day: sesion.dia,
         startHour: sesion.hora,
@@ -817,17 +819,19 @@ class Scheduler {
 
   removeBlock(grupoId, block) {
     const hourSet = new Set(block.hours);
-    this.horario.sesiones = this.horario.sesiones.filter(
-      (sesion) =>
-        !(
-          sesion.grupoId === grupoId &&
-          sesion.asignaturaId === block.asignaturaId &&
-          sesion.profesorId === block.profesorId &&
-          (sesion.tipoSesion ?? "clase") === (block.kind ?? "clase") &&
-          sesion.dia === block.day &&
-          hourSet.has(sesion.hora)
-        ),
-    );
+    this.horario.sesiones = this.horario.sesiones.filter((sesion) => {
+      if (block.blockId) {
+        return !(sesion.grupoId === grupoId && sesion.blockId === block.blockId);
+      }
+      return !(
+        sesion.grupoId === grupoId &&
+        sesion.asignaturaId === block.asignaturaId &&
+        sesion.profesorId === block.profesorId &&
+        (sesion.tipoSesion ?? "clase") === (block.kind ?? "clase") &&
+        sesion.dia === block.day &&
+        hourSet.has(sesion.hora)
+      );
+    });
   }
 
   cleanupDuplicateSingleInstanceBlocks(grupoId) {

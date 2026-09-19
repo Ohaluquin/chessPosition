@@ -49,7 +49,47 @@
                                                                       "fin":  "20:00"
                                                                   }
                                                }
-                              }
+                              },
+                   "aulasPorGrupo":  {
+                                      "101": "a15",
+                                      "111": "a15",
+                                      "102": "a14",
+                                      "112": "a14",
+                                      "103": "a13",
+                                      "113": "a13",
+                                      "104": "a12",
+                                      "114": "a12",
+                                      "105": "a11",
+                                      "115": "a11",
+                                      "106": "a10",
+                                      "116": "a10",
+                                      "107": "a9",
+                                      "117": "a9",
+                                      "301": "a4",
+                                      "311": "a4",
+                                      "302": "a5",
+                                      "312": "a5",
+                                      "303": "a6",
+                                      "313": "a6",
+                                      "304": "a7",
+                                      "314": "a7",
+                                      "501": "a1",
+                                      "511": "a1",
+                                      "502": "a2",
+                                      "512": "a2",
+                                      "503": "a3",
+                                      "513": "a3"
+                                  },
+                   "preferenciaAulasRecursamiento":  {
+                                                       "impar":  {
+                                                                    "matutino": ["a8", "a3", "a7"],
+                                                                    "vespertino": ["a8", "a3", "a7"]
+                                                                },
+                                                       "par":  {
+                                                                  "matutino": ["a8", "a9", "a10"],
+                                                                  "vespertino": ["a8", "a9", "a10"]
+                                                              }
+                                                   }
                },
     "reglasFijas":  [
                         {
@@ -142,6 +182,19 @@
                                  "dias":  [
                                               "lunes",
                                               "jueves"
+                                          ],
+                                 "motivo":  "Optativa 5to"
+                             },
+                             {
+                                 "id":  "opt_5_f4",
+                                 "nombre":  "Optativas 5to - Franja 4",
+                                 "periodo":  "impar",
+                                 "gradoObjetivo":  5,
+                                 "inicio":  "18:00",
+                                 "duracionMin":  90,
+                                 "dias":  [
+                                              "lunes",
+                                              "miercoles"
                                           ],
                                  "motivo":  "Optativa 5to"
                              }
