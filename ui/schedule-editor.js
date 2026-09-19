@@ -156,6 +156,7 @@ const ScheduleEditor = {
     };
 
     if (session) {
+      app.groupEditorEditingSession = session;
       app.groupEditorSelectedAsignaturaId = session.asignaturaId;
       selectAsignatura.value = session.asignaturaId;
       syncDependentSelects(
@@ -168,6 +169,7 @@ const ScheduleEditor = {
       document.getElementById("form-delete-session").style.display =
         "inline-block";
     } else {
+      app.groupEditorEditingSession = null;
       const preferredAsignaturaId =
         app.groupEditorSelectedAsignaturaId &&
         asignaturas.some((item) => item.id === app.groupEditorSelectedAsignaturaId)
@@ -234,6 +236,7 @@ const ScheduleEditor = {
       locked,
       day,
       hour,
+      existingSession: app.groupEditorEditingSession || null,
     });
 
     if (!validation.valid) {
@@ -242,6 +245,7 @@ const ScheduleEditor = {
     }
 
     Dialogs.close("dialog-session");
+    app.groupEditorEditingSession = null;
     GroupView.renderEditor(app);
     app.refreshGrid();
   },
@@ -252,9 +256,16 @@ const ScheduleEditor = {
 
     const day = parseInt(document.getElementById("input-day").value, 10);
     const hour = parseInt(document.getElementById("input-hour").value, 10);
-    SessionService.removeBlockSessions(app, v.entity.id, day, hour);
+    SessionService.removeBlockSessions(
+      app,
+      v.entity.id,
+      day,
+      hour,
+      app.groupEditorEditingSession || null,
+    );
 
     Dialogs.close("dialog-session");
+    app.groupEditorEditingSession = null;
     GroupView.renderEditor(app);
     app.refreshGrid();
   },

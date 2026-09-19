@@ -80,6 +80,19 @@ const app = {
     ).padStart(2, "0")}`;
   }),
 };
+const editableSession = app.horario.sesiones[0];
+const editResult = SessionService.saveGroupSession(app, {
+  grupoId: editableSession.grupoId,
+  asignaturaId: editableSession.asignaturaId,
+  tipoSesion: editableSession.tipoSesion,
+  profesorId: editableSession.profesorId,
+  aulaId: editableSession.aulaId,
+  locked: !editableSession.locked,
+  day: editableSession.dia,
+  hour: editableSession.hora,
+  existingSession: editableSession,
+});
+assert.equal(editResult.valid, true, "toggling LOCK on an existing session must not self-conflict");
 const templateData = JSON.parse(
   fs.readFileSync(path.join(root, "data", "semestre_A.json"), "utf8").replace(/^\uFEFF/, ""),
 );

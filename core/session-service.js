@@ -63,9 +63,10 @@ const SessionService = {
     return range;
   },
 
-  getBlockSessions(app, grupoId, day, hour) {
-    const seed = this.findGroupSession(app, grupoId, day, hour);
+  getBlockSessions(app, grupoId, day, hour, seedOverride = null) {
+    const seed = seedOverride || this.findGroupSession(app, grupoId, day, hour);
     if (!seed) return [];
+    if (!app.horario.sesiones.includes(seed)) return [];
 
     if (seed.blockId) {
       return app.horario.sesiones
@@ -121,8 +122,8 @@ const SessionService = {
     return `block_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   },
 
-  removeBlockSessions(app, grupoId, day, hour) {
-    const block = this.getBlockSessions(app, grupoId, day, hour);
+  removeBlockSessions(app, grupoId, day, hour, seedOverride = null) {
+    const block = this.getBlockSessions(app, grupoId, day, hour, seedOverride);
     block.forEach((sesion) => app.horario.removeSesion(sesion));
     return block;
   },
@@ -302,6 +303,7 @@ const SessionService = {
       payload.grupoId,
       payload.day,
       payload.hour,
+      payload.existingSession || null,
     );
 
     const validation = this.validateGroupSession(app, payload);
