@@ -57,6 +57,7 @@ const GroupView = {
       turno: source.turno,
       grado: source.grado,
       tipo: source.tipo,
+      modalidad: source.modalidad,
       planAsignaturas: [...app.groupEditorPendingPlanIds],
       estructuraPorAsignatura: { ...source.estructuraPorAsignatura },
       franjasOptativasPorAsignatura: { ...source.franjasOptativasPorAsignatura },
@@ -228,6 +229,20 @@ const GroupView = {
     const selectTurno = document.getElementById("group-turno");
     const selectGrade = document.getElementById("group-grade");
     const selectType = document.getElementById("group-type");
+    let selectModality = document.getElementById("group-modality");
+    if (!selectModality && selectType?.closest(".editor-row")) {
+      const row = document.createElement("div");
+      row.className = "row editor-row";
+      row.innerHTML = `
+        <label for="group-modality">Modalidad académica</label>
+        <select id="group-modality" style="flex:1;">
+          <option value="auto">Automática según periodo y grado</option>
+          <option value="estructura">Estructura</option>
+          <option value="recursamiento">Recursamiento</option>
+        </select>`;
+      selectType.closest(".editor-row").after(row);
+      selectModality = row.querySelector("#group-modality");
+    }
     const selectSubjects = document.getElementById("group-subjects-list");
     const detail = document.getElementById("group-subject-detail");
     const stats = document.getElementById("group-stats");
@@ -236,6 +251,7 @@ const GroupView = {
     if (selectTurno) selectTurno.value = grupo.turno ?? "matutino";
     if (selectGrade) selectGrade.value = String(grupo.grado ?? 1);
     if (selectType) selectType.value = grupo.tipo ?? "regular";
+    if (selectModality) selectModality.value = grupo.modalidad || "auto";
     const cancelButton = document.getElementById("btn-group-cancel");
     if (cancelButton) cancelButton.style.display = app.groupEditorIsDraft ? "inline-block" : "none";
     const saveButton = document.getElementById("btn-group-save");
@@ -441,13 +457,25 @@ const GroupView = {
       )?.nombre || "Sin academia";
     const scheduler = new Scheduler(app.horario, ScheduleEditor.buildDataStore(app));
     const variants = selected.asignatura.getBlockVariants?.() || [];
-    const variantOptions = variants
+    const rawVariantKey = GroupService.ensureStructureMap(view.entity)[selected.asignatura.id];
+    const preferredVariantKey = selected.asignatura.getPreferredVariantKey?.({
+      periodo: app.data?.meta?.periodo,
+      modalidad: GroupService.getGroupModality(app, view.entity),
+    });
+    const automaticSelection =
+      !rawVariantKey ||
+      rawVariantKey === "auto" ||
+      (rawVariantKey === "default" && preferredVariantKey && preferredVariantKey !== "default");
+    const variantOptions = [
+      `<option value="auto"${automaticSelection ? " selected" : ""}>Automática (preferencia)</option>`,
+      ...variants
       .map((variant) => {
-        const selectedAttr = variant.key === selected.variantKey ? " selected" : "";
+        const selectedAttr = !automaticSelection && variant.key === selected.variantKey ? " selected" : "";
         const description = this.formatVariantBlocks(variant.blocks);
         return `<option value="${variant.key}"${selectedAttr}>${variant.label} - ${description}</option>`;
       })
-      .join("");
+      .join(""),
+    ].join("");
     const compatibleTeachers = GroupService.getCompatibleProfesores(
       app,
       view.entity,
@@ -542,6 +570,7 @@ const GroupView = {
         <div class="group-subject-detail-variant">
           <label for="group-subject-variant">Variante semanal</label>
           <select id="group-subject-variant">${variantOptions}</select>
+          <small>La opción automática usa la preferencia de la materia y la modalidad del grupo.</small>
         </div>
         ${
           diagnosisItems.length > 0
@@ -621,9 +650,9 @@ const GroupView = {
     const variantSelect = document.getElementById("group-subject-variant");
     if (variantSelect) {
       variantSelect.onchange = () => {
-        const nextVariantKey = variantSelect.value || "default";
+        const nextVariantKey = variantSelect.value || "auto";
         const structureMap = GroupService.ensureStructureMap(view.entity);
-        const previousVariantKey = structureMap[selected.asignatura.id] || selected.variantKey || "default";
+        const previousVariantKey = structureMap[selected.asignatura.id] || "auto";
         structureMap[selected.asignatura.id] = nextVariantKey;
 
         if (previousVariantKey !== nextVariantKey) {
@@ -649,6 +678,7 @@ const GroupView = {
     const selectTurno = document.getElementById("group-turno");
     const selectGrade = document.getElementById("group-grade");
     const selectType = document.getElementById("group-type");
+    const selectModality = document.getElementById("group-modality");
 
     const nextName = inputName?.value.trim() || "";
     if (!nextName) {
@@ -699,6 +729,10 @@ const GroupView = {
     if (selectTurno) grupo.turno = selectTurno.value || grupo.turno;
     grupo.grado = Number(selectGrade?.value) || grupo.grado;
     grupo.tipo = nextType;
+    grupo.modalidad =
+      selectModality?.value === "estructura" || selectModality?.value === "recursamiento"
+        ? selectModality.value
+        : null;
     grupo.planAsignaturas = planIds;
 
     if (app.groupEditorIsDraft) {

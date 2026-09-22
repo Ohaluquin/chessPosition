@@ -17,9 +17,10 @@ El proyecto funciona únicamente en el navegador y no requiere servidor, compila
 - Vistas de horarios por grupo, profesor, aula y academia.
 - Exportación de horarios por grupo o profesor en HTML y del concentrado de Escolares en TXT.
 - Planeador estudiantil para combinar materias y ordenar alternativas según preferencias.
-- Editor de la copia de trabajo para horarios por turno, franjas optativas y reglas fijas.
+- Editor de la copia de trabajo para horarios por turno, franjas optativas, reglas fijas, modalidad de grupos y variantes semanales.
 - Variantes de ciencias con laboratorio, estudio, clases de 90 minutos y clases extendidas de 120 minutos.
 - Autoasignación de aulas con mapa mayoritario configurable por grupo y preferencias de respaldo para recursamiento.
+- Catálogo flexible de variantes por asignatura: clases de 60, 90, 120 o 150 minutos, estudio separado y distribuciones personalizadas.
 
 ## Inicio rápido
 
@@ -39,7 +40,7 @@ Después visita `http://localhost:8000/`.
 ## Flujo recomendado
 
 1. Abre `index.html` y carga la plantilla fija del semestre impar o par, o importa un JSON de trabajo anterior.
-2. Usa **Editar JSON de trabajo** para ajustar horarios por turno, franjas optativas o reglas fijas sin modificar la plantilla incluida.
+2. Usa **Editar JSON de trabajo** para ajustar horarios por turno, franjas optativas, reglas fijas, la regla automática de estructura/recursamiento y las variantes semanales sin modificar la plantilla incluida.
 3. Revisa academias, profesores y aulas.
 4. Crea o ajusta los grupos y su plan de materias.
 5. En los grupos optativos, asigna las materias, el profesor y una o más franjas permitidas.
@@ -62,10 +63,37 @@ Antes de cargar una plantilla o ejecutar una reasignación masiva, conserva una 
 - Una sesión se rechaza si genera conflicto de grupo, profesor o aula, invade un bloqueo o incumple la franja de una optativa.
 - Las materias que requieren laboratorio distinguen sus bloques de laboratorio de las clases regulares.
 - La autoasignación de aulas completa únicamente las sesiones que todavía no tienen aula.
+- Si un grupo no declara `modalidad`, se clasifica automáticamente: en periodo impar los grados 1, 3 y 5 son de estructura; en periodo par lo son los grados 2, 4 y 6. El editor del grupo permite elegir explícitamente `estructura` o `recursamiento` cuando exista una excepción.
 
 Las reglas y los intervalos efectivos provienen del objeto `config` y de las colecciones `reglasFijas` y `franjasOptativas` del JSON cargado. Dentro de `config` se pueden ajustar `aulasPorGrupo` para cambiar el aula principal de un grupo y `preferenciaAulasRecursamiento` para definir el orden de respaldo por periodo y turno.
 
-Las asignaturas que requieren laboratorio exponen cuatro estructuras semanales: laboratorio + dos clases + estudio; laboratorio + dos clases; tres clases sin laboratorio; y laboratorio + dos clases de 120 minutos. El estudio se puede seleccionar manualmente cuando pertenece a la estructura elegida; el programador automático procura colocarlo después de las clases.
+Las asignaturas exponen variantes semanales completas mediante `weeklyBlockVariants`. También se generan opciones comunes automáticamente, incluyendo quitar o agregar el estudio y distribuir la carga en sesiones de 60, 90, 120 o 150 minutos. Las materias de ciencias conservan sus cuatro estructuras iniciales con laboratorio. Las preferencias suaves se pueden declarar en `variantPreferences` por periodo o modalidad; la elección manual del grupo siempre tiene prioridad.
+
+Ejemplo de una variante personalizada:
+
+```json
+{
+  "matematicas_i": {
+    "variants": [
+      {
+        "key": "cuatro_clases_60",
+        "label": "4 clases de 60 minutos",
+        "blocks": [
+          { "kind": "clase", "duration": 2 },
+          { "kind": "clase", "duration": 2 },
+          { "kind": "clase", "duration": 2 },
+          { "kind": "clase", "duration": 2 }
+        ]
+      }
+    ],
+    "preferences": {
+      "byModality": { "recursamiento": "cuatro_clases_60" }
+    }
+  }
+}
+```
+
+La modalidad automática se puede ajustar en `config.reglaModalidad`; una modalidad explícita en `grupos[].modalidad` la sobrescribe.
 
 Las plantillas incluyen cuatro franjas de optativas. La cuarta ocurre los lunes y miércoles a las 18:00, con duración de 90 minutos.
 
@@ -79,7 +107,7 @@ La aplicación incluye plantillas para ambos periodos:
 
 Las plantillas son inmutables durante el uso de la aplicación. Al cargarlas se crea una copia en memoria: cada usuario puede editarla y descargarla como JSON sin cambiar los archivos publicados ni afectar a otras personas. **Importar JSON de trabajo** permite continuar posteriormente desde esa copia personalizada.
 
-Al exportar, la aplicación genera el formato versión 5 e incluye el catálogo y la configuración junto con `sesiones` y `bloqueos`. La importación mantiene compatibilidad con archivos versión 4:
+Al exportar, la aplicación genera el formato versión 6 e incluye el catálogo y la configuración junto con `sesiones` y `bloqueos`. La importación mantiene compatibilidad con archivos versión 4 y 5:
 
 - conserva grupos, sesiones, bloqueos, profesores y aulas existentes;
 - interpreta como regulares los grupos antiguos que no declaran un tipo;

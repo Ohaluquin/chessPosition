@@ -53,6 +53,24 @@ const Rules = {
   getGroupTimeWindow: (data, grupo) =>
     Rules.getConfiguredTimeWindow(data, "grupo", grupo?.turno),
 
+  getGroupModality: (data, grupo) => {
+    if (grupo?.tipo === "optativa") return "optativa";
+    if (grupo?.modalidad === "estructura" || grupo?.modalidad === "recursamiento") {
+      return grupo.modalidad;
+    }
+
+    const period = Rules.normalizeText(data?.meta?.periodo) === "par" ? "par" : "impar";
+    const configured = data?.config?.reglaModalidad?.[period];
+    const structureGrades = Array.isArray(configured?.estructura)
+      ? configured.estructura.map(Number)
+      : period === "par"
+        ? [2, 4, 6]
+        : [1, 3, 5];
+    return structureGrades.includes(Number(grupo?.grado))
+      ? "estructura"
+      : "recursamiento";
+  },
+
   getProfessorTimeWindow: (data, profesor) => {
     const fallback = Rules.getConfiguredTimeWindow(data, "profesor", profesor?.turno);
     return Rules.normalizeTimeWindow(profesor?.horarioLaboral, fallback);

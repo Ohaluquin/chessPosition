@@ -1,5 +1,5 @@
 const Persistence = {
-  CURRENT_VERSION: 5,
+  CURRENT_VERSION: 6,
 
   exportData(app) {
     const exportObj = {
@@ -131,6 +131,8 @@ const Persistence = {
             requiereLaboratorio: d.requiereLaboratorio ?? false,
             weeklyBlockVariants: d.weeklyBlockVariants ?? d.blockVariants ?? [],
             selectedWeeklyBlockVariant: d.selectedWeeklyBlockVariant ?? null,
+            variantPreferences:
+              d.variantPreferences ?? d.preferenciasVariantes ?? {},
           }),
       ),
       grupos: (jsonData.grupos || []).map(
@@ -141,6 +143,7 @@ const Persistence = {
             turno: d.turno,
             grado: d.grado ?? null,
             tipo: this.inferGroupType(d),
+            modalidad: d.modalidad ?? d.perfilHorario ?? null,
             planAsignaturas: d.planAsignaturas ?? [],
             profesoresPorAsignatura: d.profesoresPorAsignatura ?? {},
             estructuraPorAsignatura: d.estructuraPorAsignatura ?? {},

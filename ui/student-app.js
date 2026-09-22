@@ -104,6 +104,7 @@ const StudentApp = {
           requiereLaboratorio: item.requiereLaboratorio ?? false,
           weeklyBlockVariants: item.weeklyBlockVariants ?? item.blockVariants ?? [],
           selectedWeeklyBlockVariant: item.selectedWeeklyBlockVariant ?? null,
+          variantPreferences: item.variantPreferences ?? item.preferenciasVariantes ?? {},
         }),
     );
     const groups = (jsonData.grupos || []).map(
@@ -114,6 +115,7 @@ const StudentApp = {
           turno: item.turno,
           grado: item.grado ?? null,
           tipo: item.tipo ?? "regular",
+          modalidad: item.modalidad ?? item.perfilHorario ?? null,
           planAsignaturas: item.planAsignaturas ?? [],
           profesoresPorAsignatura: item.profesoresPorAsignatura ?? {},
           estructuraPorAsignatura: item.estructuraPorAsignatura ?? {},

@@ -152,13 +152,12 @@ assert.ok(
 
 const physics = templateApp.data.asignaturas.find((subject) => subject.id === "fisica_i");
 const scienceVariants = physics.getBlockVariants();
-assert.equal(
-  scienceVariants.length,
-  4,
-  "lab sciences must expose the four approved weekly structures",
+assert.ok(
+  scienceVariants.length >= 4,
+  "lab sciences must expose the four approved weekly structures plus flexible distributions",
 );
 assert.equal(
-  JSON.stringify(scienceVariants.map((variant) => variant.blocks.map((block) => `${block.kind}:${block.duration}`))),
+  JSON.stringify(scienceVariants.slice(0, 4).map((variant) => variant.blocks.map((block) => `${block.kind}:${block.duration}`))),
   JSON.stringify([
     ["laboratorio:3", "clase:3", "clase:3"],
     ["laboratorio:3", "clase:3", "clase:3", "estudio:2"],
@@ -166,6 +165,96 @@ assert.equal(
     ["laboratorio:3", "clase:4", "clase:4"],
   ]),
   "science variants must include the three original options and the 120-minute option",
+);
+assert.ok(
+  scienceVariants.some((variant) =>
+    variant.blocks.map((block) => `${block.kind}:${block.duration}`).join("|") ===
+    "clase:2|clase:2|clase:2|clase:2",
+  ),
+  "lab sciences must also expose four 60-minute classes without laboratory",
+);
+assert.ok(
+  scienceVariants.some((variant) =>
+    variant.blocks.map((block) => `${block.kind}:${block.duration}`).join("|") ===
+    "laboratorio:3|clase:2|clase:2|clase:2|clase:2",
+  ),
+  "lab sciences must expose four 60-minute classes with laboratory",
+);
+const variantGroup = new Grupo({
+  id: "g-variant-summary",
+  nombre: "Variante resumen",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["fisica_i"],
+  estructuraPorAsignatura: { fisica_i: "default" },
+});
+const noStudySummary = GroupService.buildAsignaturaSummaries(templateApp, variantGroup)[0];
+assert.equal(noStudySummary.variantKey, "default");
+assert.equal(noStudySummary.requeridos, 9, "the no-study variant must require 9 segments");
+assert.equal(noStudySummary.bloquesRequeridos, 3);
+assert.equal(noStudySummary.estudioRequerido, false);
+variantGroup.estructuraPorAsignatura.fisica_i = "ciencias_lab_clase_estudio";
+const studySummary = GroupService.buildAsignaturaSummaries(templateApp, variantGroup)[0];
+assert.equal(studySummary.variantKey, "ciencias_lab_clase_estudio");
+assert.equal(studySummary.requeridos, 11, "the study variant must require 2 additional segments");
+assert.equal(studySummary.bloquesRequeridos, 4);
+assert.equal(studySummary.estudioRequerido, true);
+const mathematics = templateApp.data.asignaturas.find((subject) => subject.id === "matematicas_i");
+const mathematicsVariantKeys = mathematics.getBlockVariants().map((variant) => variant.key);
+assert.ok(
+  mathematicsVariantKeys.includes("class_only_2_2_2_2"),
+  "subjects must expose the four 60-minute class option",
+);
+assert.ok(
+  mathematicsVariantKeys.includes("sin_estudio"),
+  "subjects with a study default must expose a no-study option",
+);
+const literature = templateApp.data.asignaturas.find((subject) => subject.id === "literatura_i");
+assert.ok(
+  literature.getBlockVariants().some((variant) =>
+    variant.blocks.every((block) => block.kind === "clase") &&
+    variant.blocks.map((block) => block.duration).join("_") === "3_3",
+  ),
+  "subjects with 120-minute defaults must expose the 90-minute recursamiento option",
+);
+mathematics.variantPreferences = mathematics.normalizeVariantPreferences({
+  byModality: { recursamiento: "class_only_2_2_2_2" },
+});
+const preferredGroup = new Grupo({
+  id: "g-preferred-variant",
+  nombre: "Preferencia",
+  turno: "matutino",
+  grado: 2,
+  planAsignaturas: ["matematicas_i"],
+});
+assert.equal(
+  GroupService.getGroupModality(templateApp, preferredGroup),
+  "recursamiento",
+  "odd-period grade 2 must default to recursamiento",
+);
+assert.equal(
+  GroupService.getSelectedStructureVariantKey(templateApp, preferredGroup, mathematics),
+  "class_only_2_2_2_2",
+  "automatic selection must honor the modality preference",
+);
+const defaultGroup = new Grupo({
+  id: "g-default-variant",
+  nombre: "Base",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["matematicas_i"],
+});
+mathematics.variantPreferences = mathematics.normalizeVariantPreferences({});
+assert.equal(
+  GroupService.getSelectedStructureVariantKey(templateApp, defaultGroup, mathematics),
+  "default",
+  "a new group without a preference must start with the base variant",
+);
+preferredGroup.modalidad = "estructura";
+assert.notEqual(
+  GroupService.getGroupModality(templateApp, preferredGroup),
+  "recursamiento",
+  "an explicit group modality must override the period/grade rule",
 );
 assert.equal(templateApp.data.franjasOptativas.length, 4, "the fixed template must contain four optative slots");
 assert.equal(
@@ -191,6 +280,16 @@ const evenData = JSON.parse(
 );
 const evenState = Persistence.hydrateState(evenData);
 const evenApp = { data: evenState.data, horario: evenState.horario, hours: app.hours };
+assert.equal(
+  GroupService.getGroupModality(evenApp, new Grupo({ id: "g-even", grado: 2, turno: "matutino" })),
+  "estructura",
+  "even-period grade 2 must default to estructura",
+);
+assert.equal(
+  GroupService.getGroupModality(evenApp, new Grupo({ id: "g-even-re", grado: 1, turno: "matutino" })),
+  "recursamiento",
+  "even-period grade 1 must default to recursamiento",
+);
 const evenRegistry = ClassroomService.createHomeRoomRegistry(evenApp);
 ClassroomService.reserveHomeRoomsForGroups(
   evenApp,

@@ -23,6 +23,7 @@ class Asignatura {
     requiereLaboratorio = false,
     weeklyBlockVariants = [],
     selectedWeeklyBlockVariant = null,
+    variantPreferences = {},
   }) {
     this.id = id;
     this.nombre = nombre;
@@ -35,11 +36,13 @@ class Asignatura {
     // Hora de estudio (explícita, sin números mágicos)
     this.estudio = {
       mode: estudio.mode || "none",
+      durationSegmentos: Math.max(1, Math.min(5, Number(estudio.durationSegmentos) || 2)),
     };
 
     this.requiereLaboratorio = requiereLaboratorio;
     this.weeklyBlockVariants = this.normalizeWeeklyBlockVariants(weeklyBlockVariants);
     this.selectedWeeklyBlockVariant = selectedWeeklyBlockVariant || null;
+    this.variantPreferences = this.normalizeVariantPreferences(variantPreferences);
   }
 
   buildDefaultRequiredBlocks() {
@@ -58,7 +61,7 @@ class Asignatura {
     }
 
     if (studyMode === "sesion_separate") {
-      blocks.push({ kind: "estudio", duration: 2 });
+      blocks.push({ kind: "estudio", duration: this.getStudyDurationSegments() });
     }
 
     return blocks;
@@ -85,11 +88,53 @@ class Asignatura {
       .filter(Boolean);
   }
 
-  buildClassOnlyVariants() {
-    if (this.requiereLaboratorio) return [];
+  normalizeVariantPreferences(preferences) {
+    const source = preferences && typeof preferences === "object" ? preferences : {};
+    const byPeriod = source.byPeriod || source.porPeriodo || source.periodo || {};
+    const byModality =
+      source.byModality || source.porModalidad || source.modalidad || {};
+    return {
+      default: String(source.default || source.predeterminada || "") || null,
+      byPeriod: Object.fromEntries(
+        Object.entries(byPeriod).filter(([, value]) => value).map(([key, value]) => [
+          String(key).toLowerCase(),
+          String(value),
+        ]),
+      ),
+      byModality: Object.fromEntries(
+        Object.entries(byModality).filter(([, value]) => value).map(([key, value]) => [
+          String(key).toLowerCase(),
+          String(value),
+        ]),
+      ),
+    };
+  }
 
-    const totalSegments = this.totalSegmentosSemanaBase;
-    if (totalSegments < 4) return [];
+  getPreferredVariantKey({ periodo = null, modalidad = null } = {}) {
+    const normalizedPeriod = String(periodo || "").toLowerCase();
+    const normalizedModality = String(modalidad || "").toLowerCase();
+    return (
+      this.variantPreferences?.byModality?.[normalizedModality] ||
+      this.variantPreferences?.byPeriod?.[normalizedPeriod] ||
+      this.variantPreferences?.default ||
+      null
+    );
+  }
+
+  buildClassOnlyVariants({ includeLaboratory = false } = {}) {
+    const classSegments = Math.max(
+      0,
+      Number(this.sesionesPorSemana || 0) * Math.max(1, Number(this.duracionSegmentos || 1)),
+    );
+    const studySegments = this.getStudyDurationSegments();
+    const candidateTotals = [
+      classSegments - studySegments,
+      classSegments,
+      classSegments + studySegments,
+    ].filter(
+      (value, index, list) => value >= 4 && list.indexOf(value) === index,
+    );
+    if (candidateTotals.length === 0) return [];
 
     const variants = [];
     const unique = new Set();
@@ -113,26 +158,64 @@ class Asignatura {
       }
     };
 
-    visit(totalSegments, []);
+    candidateTotals.forEach((totalSegments) => visit(totalSegments, []));
 
     const defaultKey = this.buildDefaultRequiredBlocks()
       .map((block) => `${block.kind}:${block.duration}`)
       .join("|");
 
-    return variants
-      .map((durationsList) => ({
-        key: `class_only_${durationsList.join("_")}`,
-        label: durationsList.every((duration) => duration === durationsList[0])
-          ? `${durationsList.length} sesiones de ${durationsList[0] * 30} min`
-          : `Sesiones de ${durationsList.map((duration) => duration * 30).join("/") } min`,
-        blocks: durationsList.map((duration) => ({ kind: "clase", duration })),
-      }))
-      .filter((variant) => {
-        const variantKey = variant.blocks
-          .map((block) => `${block.kind}:${block.duration}`)
-          .join("|");
-        return variantKey !== defaultKey;
-      });
+    const labPrefix = includeLaboratory && this.requiereLaboratorio
+      ? [{ kind: "laboratorio", duration: Math.max(1, Number(this.duracionSegmentos || 1)) }]
+      : [];
+    const keyPrefix = labPrefix.length > 0 ? "lab_" : "";
+    return variants.map((durationsList) => ({
+      key: `${keyPrefix}class_only_${durationsList.join("_")}`,
+      label: durationsList.every((duration) => duration === durationsList[0])
+        ? `${labPrefix.length > 0 ? "Laboratorio + " : ""}${durationsList.length} sesiones de ${durationsList[0] * 30} min`
+        : `${labPrefix.length > 0 ? "Laboratorio + " : ""}sesiones de ${durationsList.map((duration) => duration * 30).join("/")} min`,
+      blocks: [
+        ...labPrefix,
+        ...durationsList.map((duration) => ({ kind: "clase", duration })),
+      ],
+    })).filter((variant) => {
+      const variantKey = variant.blocks.map((block) => `${block.kind}:${block.duration}`).join("|");
+      return variantKey !== defaultKey;
+    });
+  }
+
+  getStudyDurationSegments() {
+    return Math.max(1, Math.min(5, Number(this.estudio?.durationSegmentos) || 2));
+  }
+
+  buildGenericStudyVariants() {
+    const defaultBlocks = this.buildDefaultRequiredBlocks();
+    const hasStudy = defaultBlocks.some((block) => block.kind === "estudio");
+    const variants = [];
+
+    if (hasStudy) {
+      const withoutStudy = defaultBlocks.filter((block) => block.kind !== "estudio");
+      if (withoutStudy.length > 0) {
+        variants.push({
+          key: "sin_estudio",
+          label: "Sin hora de estudio",
+          blocks: withoutStudy,
+        });
+      }
+    } else {
+      const classBlocks = defaultBlocks.filter((block) => block.kind === "clase");
+      if (classBlocks.length > 0) {
+        variants.push({
+          key: "estudio_separado",
+          label: "Con hora de estudio separada",
+          blocks: [
+            ...defaultBlocks,
+            { kind: "estudio", duration: this.getStudyDurationSegments() },
+          ],
+        });
+      }
+    }
+
+    return variants;
   }
 
   buildScienceVariants() {
@@ -196,7 +279,9 @@ class Asignatura {
     [
       ...this.weeklyBlockVariants,
       ...this.buildScienceVariants(),
+      ...this.buildGenericStudyVariants(),
       ...this.buildClassOnlyVariants(),
+      ...this.buildClassOnlyVariants({ includeLaboratory: true }),
     ].forEach((variant) => {
       const signature = variant.blocks
         .map((block) => `${block.kind}:${block.duration}`)
@@ -249,6 +334,7 @@ class Grupo {
     turno,
     grado = null,
     tipo = "regular",
+    modalidad = null,
     planAsignaturas = [],
     profesoresPorAsignatura = {},
     estructuraPorAsignatura = {},
@@ -259,6 +345,9 @@ class Grupo {
     this.turno = turno; // 'matutino' | 'vespertino'
     this.grado = grado;
     this.tipo = tipo === "optativa" ? "optativa" : "regular";
+    this.modalidad = ["estructura", "recursamiento"].includes(modalidad)
+      ? modalidad
+      : null;
 
     // Array de IDs de asignatura
     this.planAsignaturas = [...planAsignaturas];

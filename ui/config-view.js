@@ -56,6 +56,7 @@ const ConfigView = {
 
     this.app = app;
     this.previousData = this.clone(app.data);
+    this.ensureAdvancedEditors();
     const meta = app.data.meta || {};
     const setValue = (id, value) => {
       const input = document.getElementById(id);
@@ -63,6 +64,33 @@ const ConfigView = {
     };
     setValue("config-name", meta.nombre || "Horario de trabajo");
     setValue("config-period", meta.periodo === "par" ? "par" : "impar");
+    const modalityRuleInput = document.getElementById("config-modality-rule-json");
+    if (modalityRuleInput) {
+      modalityRuleInput.value = JSON.stringify(
+        app.data.config?.reglaModalidad || {
+          impar: { estructura: [1, 3, 5], recursamiento: [2, 4, 6] },
+          par: { estructura: [2, 4, 6], recursamiento: [1, 3, 5] },
+        },
+        null,
+        2,
+      );
+    }
+    const variantsInput = document.getElementById("config-subject-variants-json");
+    if (variantsInput) {
+      variantsInput.value = JSON.stringify(
+        Object.fromEntries(
+          (app.data.asignaturas || []).map((subject) => [
+            subject.id,
+            {
+              variants: subject.weeklyBlockVariants || [],
+              preferences: subject.variantPreferences || {},
+            },
+          ]),
+        ),
+        null,
+        2,
+      );
+    }
 
     ["matutino", "vespertino"].forEach((turno) => {
       const groupWindow = Rules.getConfiguredTimeWindow(app.data, "grupo", turno);
@@ -76,6 +104,56 @@ const ConfigView = {
     this.renderOptativeSlots(app.data.franjasOptativas || []);
     this.renderFixedRules(app.data.reglasFijas || []);
     Dialogs.open("dialog-config");
+  },
+
+  ensureAdvancedEditors() {
+    const modal = document.querySelector("#dialog-config .config-modal-content");
+    const actions = modal?.querySelector(".config-modal-actions");
+    if (!modal || !actions) return;
+
+    if (!document.getElementById("config-modality-rule-json")) {
+      const section = document.createElement("section");
+      section.className = "config-section";
+      section.innerHTML = `
+        <h3>Regla automática de estructura y recursamiento</h3>
+        <p class="config-help">Define los grados de estructura por periodo. Cada grupo puede sobrescribir esta regla desde su editor.</p>
+        <textarea id="config-modality-rule-json" rows="8" spellcheck="false" style="width:100%;font-family:monospace;"></textarea>`;
+      modal.insertBefore(section, actions);
+    }
+
+    if (!document.getElementById("config-subject-variants-json")) {
+      const section = document.createElement("section");
+      section.className = "config-section";
+      section.innerHTML = `
+        <h3>Variantes semanales por asignatura</h3>
+        <p class="config-help">Edita variantes y preferencias. Cada duración está expresada en segmentos de 30 minutos. Las variantes generadas automáticamente también están disponibles en el editor de grupos.</p>
+        <textarea id="config-subject-variants-json" rows="18" spellcheck="false" style="width:100%;font-family:monospace;"></textarea>`;
+      modal.insertBefore(section, actions);
+    }
+  },
+
+  collectAdvancedSettings() {
+    const ruleText = document.getElementById("config-modality-rule-json")?.value || "{}";
+    const variantsText = document.getElementById("config-subject-variants-json")?.value || "{}";
+    let modalityRule;
+    let subjectVariants;
+    try {
+      modalityRule = JSON.parse(ruleText);
+    } catch {
+      throw new Error("La regla de modalidad no contiene un JSON válido.");
+    }
+    try {
+      subjectVariants = JSON.parse(variantsText);
+    } catch {
+      throw new Error("Las variantes de asignaturas no contienen un JSON válido.");
+    }
+    if (!modalityRule || typeof modalityRule !== "object" || Array.isArray(modalityRule)) {
+      throw new Error("La regla de modalidad debe ser un objeto JSON.");
+    }
+    if (!subjectVariants || typeof subjectVariants !== "object" || Array.isArray(subjectVariants)) {
+      throw new Error("Las variantes deben ser un objeto indexado por ID de asignatura.");
+    }
+    return { modalityRule, subjectVariants };
   },
 
   renderOptativeSlots(slots) {
@@ -352,6 +430,7 @@ const ConfigView = {
     try {
       const nextSlots = this.collectOptativeSlots();
       const nextRules = this.collectFixedRules();
+      const { modalityRule, subjectVariants } = this.collectAdvancedSettings();
       const windows = {
         grupo: {
           matutino: this.readWindow("config-group-matutino", "grupos matutinos"),
@@ -384,10 +463,40 @@ const ConfigView = {
             session.grupoId === groupId && session.asignaturaId === subjectId,
         ),
       ).length;
+      const changedSubjectIds = new Set();
+      (app.data.asignaturas || []).forEach((subject) => {
+        const next = subjectVariants[subject.id] || {};
+        const nextVariants = Array.isArray(next.variants) ? next.variants : [];
+        const nextPreferences = next.preferences || next.preferencias || {};
+        const previousSignature = JSON.stringify({
+          variants: subject.weeklyBlockVariants || [],
+          preferences: subject.variantPreferences || {},
+        });
+        const nextSignature = JSON.stringify({
+          variants: nextVariants,
+          preferences: nextPreferences,
+        });
+        if (previousSignature !== nextSignature) changedSubjectIds.add(subject.id);
+      });
+      const affectedVariantPairs = [];
+      (app.data.grupos || []).forEach((group) => {
+        changedSubjectIds.forEach((subjectId) => {
+          if (GroupService.getPlanAsignaturaIds(group).includes(subjectId)) {
+            affectedVariantPairs.push([group.id, subjectId]);
+          }
+        });
+      });
+      const affectedVariantSegments = (app.horario.sesiones || []).filter((session) =>
+        affectedVariantPairs.some(
+          ([groupId, subjectId]) =>
+            session.grupoId === groupId && session.asignaturaId === subjectId,
+        ),
+      ).length;
+      const allAffectedSegments = affectedSegments + affectedVariantSegments;
       if (
-        affectedSegments > 0 &&
+        allAffectedSegments > 0 &&
         !window.confirm(
-          `Cambiar las franjas eliminará ${affectedSegments} segmento(s) optativo(s) ya programado(s). ¿Continuar?`,
+          `Cambiar la configuración eliminará ${allAffectedSegments} segmento(s) programado(s) que dependen de ella. ¿Continuar?`,
         )
       ) {
         return;
@@ -406,7 +515,17 @@ const ConfigView = {
           grupo: windows.grupo,
           profesor: windows.profesor,
         },
+        reglaModalidad: modalityRule,
       };
+      (app.data.asignaturas || []).forEach((subject) => {
+        const next = subjectVariants[subject.id] || {};
+        subject.weeklyBlockVariants = subject.normalizeWeeklyBlockVariants(
+          Array.isArray(next.variants) ? next.variants : [],
+        );
+        subject.variantPreferences = subject.normalizeVariantPreferences(
+          next.preferences || next.preferencias || {},
+        );
+      });
       app.data.franjasOptativas = nextSlots;
       app.data.reglasFijas = nextRules;
 
@@ -422,6 +541,9 @@ const ConfigView = {
         );
       });
       affectedPairs.forEach(([groupId, subjectId]) =>
+        GroupService.clearScheduledSubjectSessions(app, groupId, subjectId),
+      );
+      affectedVariantPairs.forEach(([groupId, subjectId]) =>
         GroupService.clearScheduledSubjectSessions(app, groupId, subjectId),
       );
       Persistence.rebuildDerivedBlocks(app.data, app.horario, previousData);

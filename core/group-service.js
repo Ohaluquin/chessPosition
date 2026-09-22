@@ -100,6 +100,10 @@ const GroupService = {
     return app.data.asignaturas.filter((asignatura) => ids.has(asignatura.id));
   },
 
+  getGroupModality(app, grupo) {
+    return Rules.getGroupModality(app?.data, grupo);
+  },
+
   getSessions(app, grupoId) {
     return app.horario.getSesionesByGrupo?.(grupoId) || [];
   },
@@ -312,6 +316,29 @@ const GroupService = {
     const currentKey = structureMap[asignatura.id];
     const variants = asignatura?.getBlockVariants?.() || [];
 
+    const preferredKey = asignatura?.getPreferredVariantKey?.({
+      periodo: app?.data?.meta?.periodo,
+      modalidad: this.getGroupModality(app, grupo),
+    });
+    const preferredExists =
+      preferredKey && variants.some((variant) => variant.key === preferredKey);
+
+    if ((!currentKey || currentKey === "auto") && preferredExists) {
+      return preferredKey;
+    }
+    if (
+      !currentKey &&
+      this.getScheduledSegments(app, grupo.id, asignatura.id) === 0 &&
+      variants.some((variant) => variant.key === "default")
+    ) {
+      return "default";
+    }
+    if (currentKey === "default" && preferredExists && preferredKey !== "default") {
+      // Older exports used "default" for every group. Treat it as automatic
+      // when the subject declares a contextual preference.
+      return preferredKey;
+    }
+
     if (currentKey && variants.some((variant) => variant.key === currentKey)) {
       return currentKey;
     }
@@ -354,7 +381,7 @@ const GroupService = {
     const requiredMatch = status.requiredBlocks.find((block) => block.kind === kind);
     if (requiredMatch) return requiredMatch.duration;
 
-    if (kind === "estudio") return 2;
+    if (kind === "estudio") return asignatura?.getStudyDurationSegments?.() || 2;
     return Math.max(1, asignatura?.duracionSegmentos || 1);
   },
 
@@ -879,9 +906,15 @@ const GroupService = {
   buildAsignaturaSummaries(app, grupo, { useVariants = true } = {}) {
     return this.getPlanAsignaturas(app, grupo).map((asignatura) => {
       const programados = this.getScheduledSegments(app, grupo.id, asignatura.id);
-      const requeridos = this.getRequiredSegments(asignatura);
-      const pendientes = Math.max(0, requeridos - programados);
       const status = this.getRequirementStatus(app, grupo, asignatura, { useVariants });
+      // The selected structure belongs to the group, not to the subject
+      // template.  Derive these totals from the resolved variant so the UI
+      // immediately reflects variants that add/remove a study block.
+      const requeridos = status.requiredBlocks.reduce(
+        (total, block) => total + block.duration,
+        0,
+      );
+      const pendientes = Math.max(0, requeridos - programados);
       const sugerido =
         this.getAssignedProfesor(app, grupo, asignatura.id) ||
         this.getSuggestedProfesor(app, grupo, asignatura.id);
