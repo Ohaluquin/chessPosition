@@ -542,7 +542,20 @@ class Scheduler {
   }
 
   validateCandidate(grupo, asignatura, profesor, day, hourRange, kind = "clase") {
-    let addedSegments = 0;
+    const validationApp = {
+      data: this.dataStore.data,
+      horario: this.horario,
+    };
+    const requirement = GroupService.getRequirementStatus(
+      validationApp,
+      grupo,
+      asignatura,
+      { useVariants: true },
+    );
+    const requiredSegments = requirement.requiredBlocks.reduce(
+      (total, block) => total + block.duration,
+      0,
+    );
 
     const optativeWindow = Rules.validateOptativeWindow(
       this.dataStore.data || {},
@@ -585,13 +598,12 @@ class Scheduler {
         day,
         hourIndex,
         asignatura.id,
-        (asignatura.totalSegmentosSemana ?? null) - addedSegments,
+        requiredSegments,
         asignatura.academiaId,
         this.getAcademiaRoomOptions(asignatura.academiaId),
       );
 
       if (!check.valid) return check;
-      addedSegments += 1;
     }
 
     return { valid: true };

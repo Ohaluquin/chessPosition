@@ -456,6 +456,10 @@ const GroupService = {
 
   countValidStartsForBlock(app, grupo, asignatura, profesor, block) {
     const duration = Math.max(1, block?.duration || asignatura?.duracionSegmentos || 1);
+    const variantKey = this.resolveStructureVariantKey(app, grupo, asignatura, {
+      useVariants: true,
+    });
+    const requiredSegments = this.getRequiredSegments(asignatura, variantKey);
     const grupoWindow = this.getGrupoTimeWindow(app, grupo);
     const profesorWindow = this.getProfesorTimeWindow(app, profesor);
     let count = 0;
@@ -473,7 +477,6 @@ const GroupService = {
         );
         if (!hourRange) continue;
 
-        let addedSegments = 0;
         let valid = true;
 
         for (const hourIndex of hourRange) {
@@ -485,7 +488,7 @@ const GroupService = {
             day,
             hourIndex,
             asignatura.id,
-            (asignatura.totalSegmentosSemana ?? null) - addedSegments,
+            requiredSegments,
             asignatura.academiaId,
             Rules.getAcademiaRoomOptions(app.data, asignatura.academiaId),
           );
@@ -495,7 +498,6 @@ const GroupService = {
             break;
           }
 
-          addedSegments += 1;
         }
 
         if (valid) count += 1;

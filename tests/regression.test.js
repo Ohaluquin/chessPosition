@@ -250,6 +250,90 @@ assert.equal(
   "default",
   "a new group without a preference must start with the base variant",
 );
+const physicsValidationGroup = new Grupo({
+  id: "g-physics-validation",
+  nombre: "Fisica validacion",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["fisica_i"],
+  profesoresPorAsignatura: { fisica_i: "t019" },
+  estructuraPorAsignatura: { fisica_i: "ciencias_lab_clase_estudio" },
+});
+templateApp.data.grupos.push(physicsValidationGroup);
+const physicsLabRoom = templateApp.data.aulas.find((room) => room.tipo === "laboratorio");
+const physicsRegularRoom = templateApp.data.aulas.find((room) => room.tipo !== "laboratorio");
+[
+  [0, 0, "clase", physicsRegularRoom?.id, "physics-class-1"],
+  [0, 1, "clase", physicsRegularRoom?.id, "physics-class-1"],
+  [0, 2, "clase", physicsRegularRoom?.id, "physics-class-1"],
+  [1, 0, "laboratorio", physicsLabRoom?.id, "physics-lab-1"],
+  [1, 1, "laboratorio", physicsLabRoom?.id, "physics-lab-1"],
+  [1, 2, "laboratorio", physicsLabRoom?.id, "physics-lab-1"],
+  [2, 0, "estudio", physicsRegularRoom?.id, "physics-study-1"],
+  [2, 1, "estudio", physicsRegularRoom?.id, "physics-study-1"],
+].forEach(([day, hour, kind, roomId, blockId]) => {
+  templateApp.horario.addSesion(
+    new Sesion(
+      physicsValidationGroup.id,
+      "fisica_i",
+      "t019",
+      roomId,
+      day,
+      hour,
+      kind,
+      false,
+      blockId,
+    ),
+  );
+});
+const physicsStatusBeforeLastClass = GroupService.getRequirementStatus(
+  templateApp,
+  physicsValidationGroup,
+  templateApp.data.asignaturas.find((subject) => subject.id === "fisica_i"),
+  { useVariants: true },
+);
+assert.equal(
+  physicsStatusBeforeLastClass.requiredBlocks.reduce((sum, block) => sum + block.duration, 0),
+  11,
+);
+assert.equal(
+  physicsStatusBeforeLastClass.scheduledBlocks.reduce((sum, block) => sum + block.duration, 0),
+  8,
+);
+const lastPhysicsClass = SessionService.validateGroupSession(templateApp, {
+  grupoId: physicsValidationGroup.id,
+  asignaturaId: "fisica_i",
+  profesorId: "t019",
+  aulaId: physicsRegularRoom?.id,
+  tipoSesion: "clase",
+  day: 3,
+  hour: 0,
+});
+assert.equal(
+  lastPhysicsClass.valid,
+  true,
+  "the final 90-minute Physics class must fit the selected 11-segment variant",
+);
+const savedLastPhysicsClass = SessionService.saveGroupSession(templateApp, {
+  grupoId: physicsValidationGroup.id,
+  asignaturaId: "fisica_i",
+  profesorId: "t019",
+  aulaId: physicsRegularRoom?.id,
+  tipoSesion: "clase",
+  day: 3,
+  hour: 0,
+});
+assert.equal(
+  savedLastPhysicsClass.valid,
+  true,
+  "saving the final 90-minute Physics class must succeed",
+);
+assert.equal(
+  templateApp.horario.sesiones.filter(
+    (session) => session.grupoId === physicsValidationGroup.id && session.asignaturaId === "fisica_i",
+  ).length,
+  11,
+);
 preferredGroup.modalidad = "estructura";
 assert.notEqual(
   GroupService.getGroupModality(templateApp, preferredGroup),

@@ -275,7 +275,10 @@ const SessionService = {
       };
     }
 
-    let addedSegments = 0;
+    const requiredSegments = GroupService.getRequiredSegments(
+      asignatura,
+      requirement.variantKey,
+    );
     for (const hourIndex of hourRange) {
       const check = Rules.validateSession(
         app.horario,
@@ -285,13 +288,12 @@ const SessionService = {
         payload.day,
         hourIndex,
         payload.asignaturaId,
-        (asignatura.totalSegmentosSemana ?? null) - addedSegments,
+        requiredSegments,
         asignatura.academiaId,
         Rules.getAcademiaRoomOptions(app.data, asignatura.academiaId),
       );
 
       if (!check.valid) return check;
-      addedSegments += 1;
     }
 
     return { valid: true, hourRange };
