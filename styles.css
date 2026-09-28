@@ -760,8 +760,10 @@ button:hover {
 }
 
 .group-editor-actions {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
   flex-wrap: wrap;
 }

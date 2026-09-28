@@ -141,6 +141,25 @@ const GroupView = {
     });
   },
 
+  ensureGroupAutoScheduleAction(app, grupo) {
+    const actions = document.querySelector("#group-editor .group-editor-actions");
+    if (!actions) return;
+
+    let button = actions.querySelector("#btn-group-auto-schedule");
+    if (!button) {
+      button = document.createElement("button");
+      button.id = "btn-group-auto-schedule";
+      button.type = "button";
+      button.className = "btn-primary";
+      button.textContent = "Llenado automático";
+      button.title = "Completar y mejorar el horario de este grupo";
+      actions.appendChild(button);
+    }
+    button.onclick = () => app.runAutoSchedule();
+    button.style.display = app.groupEditorIsDraft ? "none" : "inline-block";
+    button.disabled = !!app.automationBusy;
+  },
+
   setGroupLock(app, grupo, locked) {
     if (!grupo || app.groupEditorIsDraft) return;
     const sessions = (app.horario.sesiones || []).filter(
@@ -256,6 +275,7 @@ const GroupView = {
     if (cancelButton) cancelButton.style.display = app.groupEditorIsDraft ? "inline-block" : "none";
     const saveButton = document.getElementById("btn-group-save");
     if (saveButton) saveButton.textContent = app.groupEditorIsDraft ? "Crear Grupo" : "Guardar Grupo";
+    this.ensureGroupAutoScheduleAction(app, grupo);
     this.ensureGroupLockActions(app, grupo);
 
     if (!(app.groupEditorPendingPlanIds instanceof Set)) {
@@ -270,16 +290,24 @@ const GroupView = {
     const scheduler = new Scheduler(app.horario, ScheduleEditor.buildDataStore(app));
     const fullPlan = GroupService.buildFullSchedulePlan(app, grupo);
     const evaluation = scheduler.evaluateGroupSchedule(grupo.id, fullPlan);
+    const breakStats = scheduler.getGroupBreakStats(grupo.id);
+    const breakTarget = scheduler.getWeeklyAdvisoryBreakTarget();
 
     if (stats) {
       const totalMaterias = summaries.length;
-      const completas = summaries.filter((item) => item.pendientes === 0).length;
+      const completas = summaries.filter(
+        (item) => item.pendientes === 0 && item.excedentes === 0,
+      ).length;
       const totalProgramados = summaries.reduce(
         (acc, item) => acc + item.programados,
         0,
       );
       const totalPendientes = summaries.reduce(
         (acc, item) => acc + item.pendientes,
+        0,
+      );
+      const totalExcedentes = summaries.reduce(
+        (acc, item) => acc + item.excedentes,
         0,
       );
       const loadSummary = GroupService.getGroupLoadSummary(app, grupo.id);
@@ -289,8 +317,11 @@ const GroupView = {
         <span class="stat-chip">Completas: ${completas}</span>
         <span class="stat-chip">Segmentos programados: ${totalProgramados}</span>
         <span class="stat-chip">Pendientes: ${totalPendientes}</span>
+        <span class="stat-chip">Excedentes: ${totalExcedentes}</span>
         <span class="stat-chip">Dias ocupados: ${loadSummary.occupiedDays}</span>
         <span class="stat-chip">Brecha diaria: ${loadSummary.balanceGap}</span>
+        <span class="stat-chip">Espacios 30 min: ${breakStats.internalFreeSlots}/${breakTarget}</span>
+        <span class="stat-chip">Dias con espacios: ${breakStats.daysWithBreak}</span>
         <span class="stat-chip">LOCK: ${loadSummary.lockedSegments}</span>
         <span class="stat-chip">Evaluacion: ${evaluation}</span>
       `;
@@ -303,7 +334,8 @@ const GroupView = {
       const option = document.createElement("option");
       option.value = item.asignatura.id;
       option.textContent =
-        `${item.asignatura.nombre} (${item.programados}/${item.requeridos})`;
+        `${item.asignatura.nombre} (${item.programados}/${item.requeridos}` +
+        `${item.excedentes > 0 ? ` · +${item.excedentes} extra` : ""})`;
       selectSubjects.appendChild(option);
     });
 
@@ -542,7 +574,12 @@ const GroupView = {
           <span>Requeridos: ${selected.requeridos}</span>
           <span>Pendientes: ${selected.pendientes}</span>
           <span>Estructura: ${selected.variantLabel || "Base"}</span>
-          <span>Bloques: ${selected.bloquesProgramados}/${selected.bloquesRequeridos}</span>
+          <span>Bloques: ${selected.bloquesCubiertos}/${selected.bloquesRequeridos}</span>
+          ${
+            selected.excedentes > 0
+              ? `<span>Excedentes: ${selected.excedentes}</span>`
+              : ""
+          }
           ${
             selected.estudioRequerido
               ? `<span>Estudio: ${selected.estudioPendiente ? "Pendiente" : "Cubierto"}</span>`

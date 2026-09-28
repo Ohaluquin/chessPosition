@@ -250,6 +250,38 @@ assert.equal(
   "default",
   "a new group without a preference must start with the base variant",
 );
+const partialVariantProfessor = templateApp.data.profesores.find(
+  (profesor) => profesor.academiaId === mathematics.academiaId,
+);
+const partialVariantGroup = new Grupo({
+  id: "g-partial-variant",
+  nombre: "Variante parcial",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["matematicas_i"],
+  profesoresPorAsignatura: {
+    matematicas_i: partialVariantProfessor?.id || null,
+  },
+});
+templateApp.horario.addSesion(
+  new Sesion(
+    partialVariantGroup.id,
+    "matematicas_i",
+    partialVariantProfessor?.id || null,
+    null,
+    0,
+    0,
+    "clase",
+    false,
+  ),
+);
+assert.doesNotThrow(
+  () => GroupService.getRequirementStatus(templateApp, partialVariantGroup, mathematics),
+  "variant scoring must handle a partially scheduled subject without recursing forever",
+);
+templateApp.horario.sesiones = templateApp.horario.sesiones.filter(
+  (session) => session.grupoId !== partialVariantGroup.id,
+);
 const physicsValidationGroup = new Grupo({
   id: "g-physics-validation",
   nombre: "Fisica validacion",
@@ -333,6 +365,139 @@ assert.equal(
     (session) => session.grupoId === physicsValidationGroup.id && session.asignaturaId === "fisica_i",
   ).length,
   11,
+);
+
+// Automatic scheduling must not accept a complete 3-segment block when only
+// the two study segments remain for the selected 11-segment Physics variant.
+const overfilledPhysicsGroup = new Grupo({
+  id: "g-physics-overfilled",
+  nombre: "Fisica excedida",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["fisica_i"],
+  estructuraPorAsignatura: { fisica_i: "ciencias_lab_clase_estudio" },
+});
+const isolatedPhysicsProfessor = new Profesor({
+  id: "t-physics-isolated",
+  nombre: "Profesor de prueba",
+  academiaId: "fisica",
+  turno: "matutino",
+});
+const overfilledBlocks = [
+  [0, 0, "laboratorio", physicsLabRoom?.id, "overfilled-lab"],
+  [1, 0, "clase", physicsRegularRoom?.id, "overfilled-class-1"],
+  [2, 0, "clase", physicsRegularRoom?.id, "overfilled-class-2"],
+  [3, 0, "clase", physicsRegularRoom?.id, "overfilled-extra"],
+];
+overfilledBlocks.forEach(([day, start, kind, roomId, blockId]) => {
+  const duration = kind === "laboratorio" ? 3 : 3;
+  for (let offset = 0; offset < duration; offset += 1) {
+    templateApp.horario.addSesion(
+      new Sesion(
+        overfilledPhysicsGroup.id,
+        "fisica_i",
+        isolatedPhysicsProfessor.id,
+        roomId,
+        day,
+        start + offset,
+        kind,
+        false,
+        blockId,
+      ),
+    );
+  }
+});
+const overfilledSummary = GroupService.buildAsignaturaSummaries(
+  templateApp,
+  overfilledPhysicsGroup,
+)[0];
+assert.equal(overfilledSummary.programados, 12);
+assert.equal(overfilledSummary.requeridos, 11);
+assert.equal(
+  overfilledSummary.pendientes,
+  2,
+  "pending segments must come from the unmatched study block, not a clamped total",
+);
+assert.equal(overfilledSummary.excedentes, 3);
+assert.equal(overfilledSummary.bloquesCubiertos, 3);
+
+const overfilledScheduler = new Scheduler(
+  templateApp.horario,
+  {
+    data: templateApp.data,
+    getAcademia: (id) => templateApp.data.academias.find((item) => item.id === id),
+    getAsignatura: (id) => templateApp.data.asignaturas.find((item) => item.id === id),
+    getGrupo: (id) =>
+      [
+        ...templateApp.data.grupos,
+        overfilledPhysicsGroup,
+      ].find((item) => item.id === id),
+    getProfesor: (id) =>
+      [...templateApp.data.profesores, isolatedPhysicsProfessor].find(
+        (item) => item.id === id,
+      ),
+    getProfesoresByAcademia: (academiaId) =>
+      [...templateApp.data.profesores, isolatedPhysicsProfessor].filter(
+        (item) => item.academiaId === academiaId,
+      ),
+    hours: app.hours,
+    reglasFijas: templateApp.data.reglasFijas,
+  },
+);
+const overfilledCandidate = overfilledScheduler.validateCandidate(
+  overfilledPhysicsGroup,
+  physics,
+  isolatedPhysicsProfessor,
+  4,
+  [0, 1, 2],
+  "clase",
+);
+assert.equal(
+  overfilledCandidate.valid,
+  false,
+  "the scheduler must reject a block that exceeds the selected variant total",
+);
+const cleanedOverfill = overfilledScheduler.cleanupOverassignedBlocks(
+  overfilledPhysicsGroup.id,
+  { useVariants: true },
+);
+assert.equal(cleanedOverfill.removedSessions, 3);
+const cleanedSummary = GroupService.buildAsignaturaSummaries(
+  templateApp,
+  overfilledPhysicsGroup,
+)[0];
+assert.equal(cleanedSummary.programados, 9);
+assert.equal(cleanedSummary.excedentes, 0);
+assert.equal(cleanedSummary.pendientes, 2);
+
+const stableVariantGroup = new Grupo({
+  id: "g-stable-variant",
+  nombre: "Variante estable",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["matematicas_i"],
+});
+templateApp.horario.addSesion(
+  new Sesion(
+    stableVariantGroup.id,
+    "matematicas_i",
+    isolatedPhysicsProfessor.id,
+    null,
+    0,
+    0,
+    "clase",
+    false,
+    "stable-math-class",
+  ),
+);
+assert.equal(
+  GroupService.getSelectedStructureVariantKey(
+    templateApp,
+    stableVariantGroup,
+    mathematics,
+  ),
+  "default",
+  "automatic variant resolution must keep the base variant after the first partial block",
 );
 preferredGroup.modalidad = "estructura";
 assert.notEqual(
@@ -572,6 +737,145 @@ assert.ok(
       candidate.hours.join(",") === "0,1,2",
   ),
   "automatic scheduling must not propose times outside the assigned optative slot",
+);
+
+const advisoryBreakGroup = new Grupo({
+  id: "g-advisory-breaks",
+  nombre: "Asesorias",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["matematicas_i"],
+});
+const advisoryBreakSchedule = new Horario();
+[0, 1, 2].forEach((day) => {
+  [0, 2, 4].forEach((hour) => {
+    advisoryBreakSchedule.addSesion(
+      new Sesion(advisoryBreakGroup.id, "matematicas_i", null, null, day, hour),
+    );
+  });
+});
+const advisoryBreakScheduler = new Scheduler(advisoryBreakSchedule, {
+  data: app.data,
+  getGrupo: (id) => (id === advisoryBreakGroup.id ? advisoryBreakGroup : null),
+  getAsignatura: (id) => app.data.asignaturas.find((subject) => subject.id === id),
+  getAcademia: (id) => app.data.academias.find((academy) => academy.id === id),
+  getProfesor: (id) => app.data.profesores.find((teacher) => teacher.id === id),
+  getProfesoresByAcademia: (id) =>
+    app.data.profesores.filter((teacher) => teacher.academiaId === id),
+  getAulas: () => app.data.aulas,
+  reglasFijas: app.data.reglasFijas || [],
+  hours: app.hours,
+});
+const advisoryBreakStats = advisoryBreakScheduler.getGroupBreakStats(
+  advisoryBreakGroup.id,
+);
+assert.equal(
+  advisoryBreakStats.internalFreeSlots,
+  6,
+  "the schedule score must count internal half-hour advisory slots",
+);
+assert.equal(
+  advisoryBreakStats.daysWithBreak,
+  3,
+  "advisory slots must be distributed across multiple days",
+);
+assert.equal(
+  JSON.stringify([...advisoryBreakStats.breaksByDay]),
+  JSON.stringify([2, 2, 2, 0, 0]),
+);
+assert.equal(advisoryBreakScheduler.getWeeklyAdvisoryBreakTarget(), 8);
+
+const repairState = Persistence.hydrateState(templateData);
+const repairTargetGroup = new Grupo({
+  id: "g-repair-target",
+  nombre: "Optativa computacion",
+  turno: "matutino",
+  grado: 5,
+  tipo: "optativa",
+  planAsignaturas: ["artes_opt"],
+  profesoresPorAsignatura: { artes_opt: "t002" },
+  franjasOptativasPorAsignatura: { artes_opt: "opt_5_f1" },
+});
+const repairBlockerGroup = new Grupo({
+  id: "g-repair-blocker",
+  nombre: "Computacion bloqueadora",
+  turno: "matutino",
+  grado: 1,
+  planAsignaturas: ["artes_i"],
+  profesoresPorAsignatura: { artes_i: "t001" },
+});
+repairState.data.grupos.push(repairTargetGroup, repairBlockerGroup);
+[0, 2].forEach((day, index) => {
+  [0, 1, 2].forEach((hour) => {
+    repairState.horario.addSesion(
+      new Sesion(
+        repairBlockerGroup.id,
+        "artes_i",
+        "t001",
+        null,
+        day,
+        hour,
+        "clase",
+        false,
+        `repair-block-${index + 1}`,
+      ),
+    );
+  });
+});
+const repairScheduler = new Scheduler(repairState.horario, {
+  data: repairState.data,
+  getGrupo: (id) => repairState.data.grupos.find((grupo) => grupo.id === id),
+  getAsignatura: (id) =>
+    repairState.data.asignaturas.find((subject) => subject.id === id),
+  getAcademia: (id) =>
+    repairState.data.academias.find((academy) => academy.id === id),
+  getProfesor: (id) =>
+    repairState.data.profesores.find((teacher) => teacher.id === id),
+  getProfesoresByAcademia: (id) =>
+    repairState.data.profesores.filter((teacher) => teacher.academiaId === id),
+  getAulas: () => repairState.data.aulas,
+  reglasFijas: repairState.data.reglasFijas || [],
+  hours: app.hours,
+});
+assert.equal(
+  repairScheduler.collectCandidates({
+    grupo: repairTargetGroup,
+    asignatura: repairState.data.asignaturas.find((subject) => subject.id === "artes_opt"),
+    profesores: [repairState.data.profesores.find((teacher) => teacher.id === "t002")],
+    dur: 3,
+  }).length,
+  0,
+  "the target optative must initially be blocked by the computer academy room",
+);
+const repairResult = repairScheduler.repairGroupScheduleGlobally(
+  repairTargetGroup.id,
+  [
+    {
+      asignaturaId: "artes_opt",
+      profesorId: "t002",
+      kind: "clase",
+      blockDuration: 3,
+    },
+  ],
+);
+assert.ok(repairResult.assigned.length === 3, "global repair must place the blocked target block");
+assert.ok(repairResult.movedBlocks >= 1, "global repair must move the blocking block");
+assert.ok(
+  repairResult.displacedGroupIds.includes(repairBlockerGroup.id),
+  "global repair must report the group whose block was displaced",
+);
+assert.equal(
+  repairState.horario.sesiones.filter(
+    (session) => session.grupoId === repairTargetGroup.id,
+  ).length,
+  3,
+);
+assert.equal(
+  repairState.horario.sesiones.filter(
+    (session) => session.grupoId === repairBlockerGroup.id,
+  ).length,
+  6,
+  "moving a blocker must preserve all of its sessions",
 );
 
 const existingRooms = app.horario.sesiones.map((session) => session.aulaId || null);

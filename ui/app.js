@@ -18,6 +18,7 @@ class App {
     this.groupEditorSelectedAsignaturaId = null;
     this.fileContext = null;
     this.autoScheduleUseVariants = false;
+    this.automationBusy = false;
     this.automationProgressHideTimer = null;
     this.templateCatalog = {
       A: {
@@ -630,11 +631,13 @@ class App {
   }
 
   setAutomationBusy(isBusy) {
+    this.automationBusy = !!isBusy;
     [
       "btn-auto-profesores",
       "btn-auto-schedule",
       "btn-auto-schedule-all",
       "btn-auto-rooms",
+      "btn-group-auto-schedule",
     ].forEach((id) => {
       const button = document.getElementById(id);
       if (button) button.disabled = !!isBusy;

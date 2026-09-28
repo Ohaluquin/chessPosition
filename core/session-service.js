@@ -279,6 +279,17 @@ const SessionService = {
       asignatura,
       requirement.variantKey,
     );
+    const scheduledSegments = app.horario.sesiones.filter(
+      (sesion) =>
+        sesion.grupoId === payload.grupoId &&
+        sesion.asignaturaId === payload.asignaturaId,
+    ).length;
+    if (scheduledSegments + hourRange.length > requiredSegments) {
+      return {
+        valid: false,
+        error: "La sesion rebasa los segmentos requeridos para esta asignatura.",
+      };
+    }
     for (const hourIndex of hourRange) {
       const check = Rules.validateSession(
         app.horario,

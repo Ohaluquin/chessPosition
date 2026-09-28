@@ -150,10 +150,16 @@ const GroupService = {
     sessions.forEach((sesion) => {
       const kind = sesion.tipoSesion ?? "clase";
       const last = blocks[blocks.length - 1];
+      const sameExplicitBlock =
+        last?.blockId && sesion.blockId && last.blockId === sesion.blockId;
+      const bothWithoutBlockId = !last?.blockId && !sesion.blockId;
       if (
         last &&
         last.kind === kind &&
         last.dia === sesion.dia &&
+        last.profesorId === (sesion.profesorId ?? null) &&
+        last.aulaId === (sesion.aulaId ?? null) &&
+        (sameExplicitBlock || bothWithoutBlockId) &&
         last.horaFin + 1 === sesion.hora
       ) {
         last.horaFin = sesion.hora;
@@ -167,6 +173,9 @@ const GroupService = {
         horaInicio: sesion.hora,
         horaFin: sesion.hora,
         duration: 1,
+        blockId: sesion.blockId || null,
+        profesorId: sesion.profesorId ?? null,
+        aulaId: sesion.aulaId ?? null,
       });
     });
 
@@ -183,27 +192,71 @@ const GroupService = {
   },
 
   getVariantMatchSummary(requiredBlocks, scheduledBlocks) {
-    const remaining = [...scheduledBlocks];
+    const remaining = (scheduledBlocks || []).map((block, index) => ({
+      ...block,
+      _matchIndex: index,
+    }));
     let coveredCount = 0;
+    let coveredSegments = 0;
+    let extraSegments = 0;
+    let overlongMatches = 0;
 
-    const plan = requiredBlocks.map((block) => {
-      const matchIndex = remaining.findIndex(
-        (item) =>
-          item.kind === block.kind &&
-          (this.isSingleInstanceKind(block.kind) || item.duration === block.duration),
+    const plan = (requiredBlocks || []).map((block) => {
+      const exactIndex = remaining.findIndex(
+        (item) => item.kind === block.kind && item.duration === block.duration,
       );
+      const matchIndex =
+        exactIndex >= 0
+          ? exactIndex
+          : remaining.findIndex(
+              (item) =>
+                item.kind === block.kind &&
+                this.isSingleInstanceKind(block.kind) &&
+                item.duration >= block.duration,
+            );
       const covered = matchIndex >= 0;
+      const matchedBlock = covered ? remaining[matchIndex] : null;
       if (covered) {
         remaining.splice(matchIndex, 1);
         coveredCount += 1;
+        coveredSegments += block.duration;
+        if (matchedBlock.duration > block.duration) {
+          overlongMatches += 1;
+          extraSegments += matchedBlock.duration - block.duration;
+        }
       }
-      return { ...block, covered };
+      return {
+        ...block,
+        covered,
+        matchedDuration: matchedBlock?.duration || 0,
+        matchedBlockIndex: matchedBlock?._matchIndex ?? null,
+      };
     });
+
+    remaining.forEach((block) => {
+      extraSegments += Math.max(0, Number(block.duration) || 0);
+    });
+
+    const requiredSegments = (requiredBlocks || []).reduce(
+      (total, block) => total + Math.max(0, Number(block.duration) || 0),
+      0,
+    );
+    const scheduledSegments = (scheduledBlocks || []).reduce(
+      (total, block) => total + Math.max(0, Number(block.duration) || 0),
+      0,
+    );
 
     return {
       plan,
       coveredCount,
-      extraScheduled: remaining.length,
+      requiredSegments,
+      scheduledSegments,
+      coveredSegments,
+      pendingSegments: plan
+        .filter((block) => !block.covered)
+        .reduce((total, block) => total + Math.max(0, Number(block.duration) || 0), 0),
+      extraSegments,
+      extraScheduled: remaining.length + overlongMatches,
       pendingBlocks: plan.filter((block) => !block.covered),
     };
   },
@@ -212,7 +265,14 @@ const GroupService = {
     return kind === "laboratorio" || kind === "estudio";
   },
 
-  getProfesorScheduleFitnessForBlocks(app, grupo, asignatura, profesor, pendingBlocks) {
+  getProfesorScheduleFitnessForBlocks(
+    app,
+    grupo,
+    asignatura,
+    profesor,
+    pendingBlocks,
+    { requiredSegments = null } = {},
+  ) {
     if (pendingBlocks.length === 0) {
       return {
         totalStarts: 0,
@@ -221,6 +281,15 @@ const GroupService = {
       };
     }
 
+    const resolvedRequiredSegments =
+      Number.isFinite(requiredSegments) && requiredSegments > 0
+        ? requiredSegments
+        : this.getRequiredSegments(
+            asignatura,
+            this.resolveStructureVariantKey(app, grupo, asignatura, {
+              useVariants: true,
+            }),
+          );
     let totalStarts = 0;
     let feasibleBlocks = 0;
 
@@ -231,6 +300,7 @@ const GroupService = {
         asignatura,
         profesor,
         block,
+        { requiredSegments: resolvedRequiredSegments },
       );
       totalStarts += starts;
       if (starts > 0) feasibleBlocks += 1;
@@ -261,6 +331,12 @@ const GroupService = {
             asignatura,
             assignedProfesor,
             match.pendingBlocks,
+            {
+              requiredSegments: variant.blocks.reduce(
+                (total, block) => total + Number(block.duration || 0),
+                0,
+              ),
+            },
           )
         : {
             totalStarts: 0,
@@ -271,6 +347,7 @@ const GroupService = {
       const score =
         match.coveredCount * 500 -
         match.extraScheduled * 400 -
+        match.pendingSegments * 45 -
         match.pendingBlocks.length * 120 -
         fitness.blockedBlocks * 80 +
         fitness.feasibleBlocks * 25 +
@@ -327,8 +404,7 @@ const GroupService = {
       return preferredKey;
     }
     if (
-      !currentKey &&
-      this.getScheduledSegments(app, grupo.id, asignatura.id) === 0 &&
+      (!currentKey || currentKey === "auto") &&
       variants.some((variant) => variant.key === "default")
     ) {
       return "default";
@@ -341,6 +417,15 @@ const GroupService = {
 
     if (currentKey && variants.some((variant) => variant.key === currentKey)) {
       return currentKey;
+    }
+
+    // A key from an older template may no longer exist after the variant
+    // configuration was edited.  Keep the stable base structure in that case
+    // instead of guessing a shorter flexible distribution from partial
+    // sessions (which is how values such as 7 can replace an expected 9).
+    if (variants.some((variant) => variant.key === "default")) {
+      structureMap[asignatura.id] = "default";
+      return "default";
     }
 
     const best = this.selectBestStructureVariant(app, grupo, asignatura);
@@ -361,6 +446,11 @@ const GroupService = {
       requiredBlocks,
       scheduledBlocks,
       plan: match.plan,
+      requiredSegments: match.requiredSegments,
+      scheduledSegments: match.scheduledSegments,
+      coveredSegments: match.coveredSegments,
+      pendingSegments: match.pendingSegments,
+      extraSegments: match.extraSegments,
       pendingBlocks: match.pendingBlocks,
       variantKey: resolvedVariantKey,
       variantLabel: asignatura?.getVariantLabel?.(resolvedVariantKey) || "Base",
@@ -389,14 +479,9 @@ const GroupService = {
     const asignatura = app.data.asignaturas.find((item) => item.id === asignaturaId);
     if (!asignatura) return 0;
 
-    const variantKey = this.resolveStructureVariantKey(app, grupo, asignatura, {
+    return this.getRequirementStatus(app, grupo, asignatura, {
       useVariants: true,
-    });
-    return Math.max(
-      0,
-      this.getRequiredSegments(asignatura, variantKey) -
-        this.getScheduledSegments(app, grupo.id, asignaturaId),
-    );
+    }).pendingSegments;
   },
 
   getGrupoTimeWindow(app, grupo) {
@@ -454,12 +539,35 @@ const GroupService = {
     return hours;
   },
 
-  countValidStartsForBlock(app, grupo, asignatura, profesor, block) {
+  countValidStartsForBlock(
+    app,
+    grupo,
+    asignatura,
+    profesor,
+    block,
+    { requiredSegments = null } = {},
+  ) {
     const duration = Math.max(1, block?.duration || asignatura?.duracionSegmentos || 1);
-    const variantKey = this.resolveStructureVariantKey(app, grupo, asignatura, {
-      useVariants: true,
-    });
-    const requiredSegments = this.getRequiredSegments(asignatura, variantKey);
+    const resolvedVariantKey =
+      Number.isFinite(requiredSegments) && requiredSegments > 0
+        ? null
+        : this.resolveStructureVariantKey(app, grupo, asignatura, {
+            useVariants: true,
+          });
+    const effectiveRequiredSegments =
+      Number.isFinite(requiredSegments) && requiredSegments > 0
+        ? requiredSegments
+        : this.getRequiredSegments(asignatura, resolvedVariantKey);
+    const scheduledSegments = this.getScheduledSegments(
+      app,
+      grupo.id,
+      asignatura.id,
+    );
+    // validateSession is intentionally per segment.  Check the complete
+    // candidate range here as well, otherwise every segment can pass against
+    // the same pre-insertion count and a 3-segment block can overfill a
+    // subject that only has two segments left.
+    if (scheduledSegments + duration > effectiveRequiredSegments) return 0;
     const grupoWindow = this.getGrupoTimeWindow(app, grupo);
     const profesorWindow = this.getProfesorTimeWindow(app, profesor);
     let count = 0;
@@ -488,7 +596,7 @@ const GroupService = {
             day,
             hourIndex,
             asignatura.id,
-            requiredSegments,
+            effectiveRequiredSegments,
             asignatura.academiaId,
             Rules.getAcademiaRoomOptions(app.data, asignatura.academiaId),
           );
@@ -907,16 +1015,16 @@ const GroupService = {
 
   buildAsignaturaSummaries(app, grupo, { useVariants = true } = {}) {
     return this.getPlanAsignaturas(app, grupo).map((asignatura) => {
-      const programados = this.getScheduledSegments(app, grupo.id, asignatura.id);
       const status = this.getRequirementStatus(app, grupo, asignatura, { useVariants });
       // The selected structure belongs to the group, not to the subject
       // template.  Derive these totals from the resolved variant so the UI
       // immediately reflects variants that add/remove a study block.
-      const requeridos = status.requiredBlocks.reduce(
-        (total, block) => total + block.duration,
-        0,
-      );
-      const pendientes = Math.max(0, requeridos - programados);
+      const requeridos = status.requiredSegments;
+      const programados = status.scheduledSegments;
+      // A subject can contain stale/extra sessions after a variant change or
+      // an older automatic run.  Pending work must come from unmatched
+      // blocks, not from a clamped subtraction of the raw session count.
+      const pendientes = status.pendingSegments;
       const sugerido =
         this.getAssignedProfesor(app, grupo, asignatura.id) ||
         this.getSuggestedProfesor(app, grupo, asignatura.id);
@@ -929,8 +1037,10 @@ const GroupService = {
         variantKey: status.variantKey,
         variantLabel: status.variantLabel,
         bloquesProgramados: status.scheduledBlocks.length,
+        bloquesCubiertos: status.plan.filter((block) => block.covered).length,
         bloquesRequeridos: status.requiredBlocks.length,
         pendientesBloque: status.pendingBlocks.length,
+        excedentes: status.extraSegments,
         estudioRequerido: status.requiredBlocks.some((block) => block.kind === "estudio"),
         estudioPendiente: status.pendingBlocks.some((block) => block.kind === "estudio"),
         laboratorioRequerido: status.requiredBlocks.some(

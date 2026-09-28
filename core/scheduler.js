@@ -8,7 +8,11 @@ class Scheduler {
     this.dataStore = dataStore;
   }
 
-  scheduleGroup(grupoId, asignaturasToSchedule, { optimizeOptions = {} } = {}) {
+  scheduleGroup(
+    grupoId,
+    asignaturasToSchedule,
+    { optimizeOptions = {}, useVariants = true } = {},
+  ) {
     const report = {
       assigned: [],
       conflicts: [],
@@ -63,6 +67,7 @@ class Scheduler {
         profesores,
         dur,
         kind: req.kind || "clase",
+        variantKey: req.variantKey || null,
         randomizeTop: false,
       });
 
@@ -77,7 +82,11 @@ class Scheduler {
       );
     }
 
-    const optimizationRequests = this.buildOptimizationRequests(grupo.id, sortedRequests);
+    const optimizationRequests = this.buildOptimizationRequests(
+      grupo.id,
+      sortedRequests,
+      { useVariants },
+    );
     report.optimization = this.optimizeGroupWithGenerations(
       grupo,
       optimizationRequests,
@@ -113,6 +122,48 @@ class Scheduler {
 
     const afterScore = this.evaluateGroupSchedule(grupo.id, requestList);
     return { beforeScore, afterScore };
+  }
+
+  getGroupBreakStats(grupoId) {
+    const hoursByDay = Array.from({ length: 5 }, () => new Set());
+    this.horario.sesiones
+      .filter((sesion) => sesion.grupoId === grupoId)
+      .forEach((sesion) => {
+        if (sesion.dia < 0 || sesion.dia >= 5) return;
+        hoursByDay[sesion.dia].add(sesion.hora);
+      });
+
+    const breaksByDay = hoursByDay.map((occupiedSet) => {
+      const hours = [...occupiedSet].sort((a, b) => a - b);
+      let freeSlots = 0;
+      for (let index = 1; index < hours.length; index += 1) {
+        freeSlots += Math.max(0, hours[index] - hours[index - 1] - 1);
+      }
+      return freeSlots;
+    });
+
+    return {
+      internalFreeSlots: breaksByDay.reduce((total, value) => total + value, 0),
+      daysWithBreak: breaksByDay.filter((value) => value > 0).length,
+      breaksByDay,
+    };
+  }
+
+  countInternalFreeSlots(hours = []) {
+    const sorted = [...new Set(hours)].sort((a, b) => a - b);
+    let freeSlots = 0;
+    for (let index = 1; index < sorted.length; index += 1) {
+      freeSlots += Math.max(0, sorted[index] - sorted[index - 1] - 1);
+    }
+    return freeSlots;
+  }
+
+  getWeeklyAdvisoryBreakTarget() {
+    return 8;
+  }
+
+  getAdvisoryBreakDayTarget(daysUsed) {
+    return Math.min(3, Math.max(0, daysUsed));
   }
 
   buildUnassignedReport(requests, grupoId, { includeDiagnostics = true } = {}) {
@@ -275,6 +326,7 @@ class Scheduler {
             day,
             hourRange,
             req.kind || "clase",
+            { variantKey: req.variantKey || null },
           );
 
           if (validation.valid) {
@@ -452,6 +504,7 @@ class Scheduler {
     profesores,
     dur,
     kind = "clase",
+    variantKey = null,
     randomizeTop = false,
     excludeBlock = null,
   }) {
@@ -461,6 +514,7 @@ class Scheduler {
       profesores,
       dur,
       kind,
+      variantKey,
       excludeBlock,
     });
 
@@ -480,6 +534,7 @@ class Scheduler {
     profesores,
     dur,
     kind = "clase",
+    variantKey = null,
     excludeBlock = null,
   }) {
     const allowedHours = this.getAllowedHourIndices(grupo, asignatura.id);
@@ -524,6 +579,7 @@ class Scheduler {
             day,
             hourRange,
             kind,
+            { variantKey },
           );
 
           if (!validation.valid) continue;
@@ -541,7 +597,15 @@ class Scheduler {
     return candidates;
   }
 
-  validateCandidate(grupo, asignatura, profesor, day, hourRange, kind = "clase") {
+  validateCandidate(
+    grupo,
+    asignatura,
+    profesor,
+    day,
+    hourRange,
+    kind = "clase",
+    { variantKey = null } = {},
+  ) {
     const validationApp = {
       data: this.dataStore.data,
       horario: this.horario,
@@ -550,12 +614,22 @@ class Scheduler {
       validationApp,
       grupo,
       asignatura,
-      { useVariants: true },
+      { variantKey, useVariants: true },
     );
     const requiredSegments = requirement.requiredBlocks.reduce(
       (total, block) => total + block.duration,
       0,
     );
+    const scheduledSegments = this.horario.sesiones.filter(
+      (sesion) =>
+        sesion.grupoId === grupo.id && sesion.asignaturaId === asignatura.id,
+    ).length;
+    if (scheduledSegments + hourRange.length > requiredSegments) {
+      return {
+        valid: false,
+        error: "El bloque rebasa los segmentos requeridos para esta asignatura.",
+      };
+    }
 
     const optativeWindow = Rules.validateOptativeWindow(
       this.dataStore.data || {},
@@ -637,6 +711,18 @@ class Scheduler {
     if (groupSessionsSameDay.length === 0) {
       score += 8;
     } else {
+      const breaksBefore = this.countInternalFreeSlots(groupSessionsSameDay);
+      const breaksAfter = this.countInternalFreeSlots([
+        ...groupSessionsSameDay,
+        ...hourRange,
+      ]);
+      const addedBreaks = Math.max(0, breaksAfter - breaksBefore);
+      if (addedBreaks > 0) {
+        // Prefer leaving short internal spaces while still allowing the
+        // optimizer to trade them against the rest of the schedule.
+        score += Math.min(addedBreaks, 2) * 7;
+      }
+
       const nearestDistance = Math.min(
         ...groupSessionsSameDay.map((hour) => Math.abs(hour - startHour)),
       );
@@ -710,6 +796,407 @@ class Scheduler {
       this.horario.addSesion(sesion);
       if (collector) collector.push(sesion);
     });
+  }
+
+  captureAllSessions() {
+    return this.horario.sesiones.map((sesion) => ({
+      grupoId: sesion.grupoId,
+      asignaturaId: sesion.asignaturaId,
+      profesorId: sesion.profesorId,
+      aulaId: sesion.aulaId ?? null,
+      dia: sesion.dia,
+      hora: sesion.hora,
+      tipoSesion: sesion.tipoSesion ?? "clase",
+      locked: sesion.locked === true,
+      blockId: sesion.blockId ?? null,
+    }));
+  }
+
+  restoreAllSessions(snapshot = []) {
+    this.horario.sesiones = snapshot.map(
+      (sesion) =>
+        new Sesion(
+          sesion.grupoId,
+          sesion.asignaturaId,
+          sesion.profesorId,
+          sesion.aulaId ?? null,
+          sesion.dia,
+          sesion.hora,
+          sesion.tipoSesion ?? "clase",
+          sesion.locked === true,
+          sesion.blockId ?? null,
+        ),
+    );
+  }
+
+  getBlockForSession(sesion) {
+    return (
+      this.getBlocksForGroup(sesion.grupoId).find(
+        (block) =>
+          block.asignaturaId === sesion.asignaturaId &&
+          block.profesorId === sesion.profesorId &&
+          block.kind === (sesion.tipoSesion ?? "clase") &&
+          block.day === sesion.dia &&
+          (block.blockId
+            ? block.blockId === sesion.blockId
+            : block.hours.includes(sesion.hora)),
+      ) || null
+    );
+  }
+
+  getBlockSessions(block) {
+    const hourSet = new Set(block.hours || []);
+    return this.horario.sesiones.filter((sesion) => {
+      if (sesion.grupoId !== block.grupoId) return false;
+      if (block.blockId) return sesion.blockId === block.blockId;
+      return (
+        sesion.asignaturaId === block.asignaturaId &&
+        sesion.profesorId === block.profesorId &&
+        (sesion.tipoSesion ?? "clase") === (block.kind ?? "clase") &&
+        sesion.dia === block.day &&
+        hourSet.has(sesion.hora)
+      );
+    });
+  }
+
+  isBlockLocked(block) {
+    return this.getBlockSessions(block).some((sesion) => sesion.locked === true);
+  }
+
+  getRepairBlockKey(block) {
+    return [
+      block.grupoId,
+      block.asignaturaId,
+      block.profesorId ?? "",
+      block.kind ?? "clase",
+      block.day,
+      block.startHour,
+      (block.hours || []).join(","),
+    ].join("|");
+  }
+
+  collectRepairCandidateProposals({ grupo, asignatura, profesores, dur, kind }) {
+    const allowedHours = this.getAllowedHourIndices(grupo, asignatura.id);
+    const allowedHourSet = new Set(allowedHours);
+    const proposals = [];
+
+    for (let day = 0; day < 5; day += 1) {
+      const alreadyScheduledSameDay = this.horario.sesiones.some(
+        (sesion) =>
+          sesion.grupoId === grupo.id &&
+          sesion.asignaturaId === asignatura.id &&
+          sesion.dia === day,
+      );
+      if (alreadyScheduledSameDay) continue;
+
+      for (const startHour of allowedHours) {
+        const hourRange = [];
+        for (let offset = 0; offset < dur; offset += 1) {
+          const hourIndex = startHour + offset;
+          if (!allowedHourSet.has(hourIndex)) {
+            hourRange.length = 0;
+            break;
+          }
+          hourRange.push(hourIndex);
+        }
+        if (hourRange.length !== dur) continue;
+
+        const optativeWindow = Rules.validateOptativeWindow(
+          this.dataStore.data || {},
+          grupo,
+          asignatura.id,
+          day,
+          hourRange,
+          this.dataStore.hours,
+        );
+        if (!optativeWindow.valid) continue;
+
+        for (const profesor of profesores) {
+          if (
+            hourRange.some(
+              (hourIndex) => !this.isProfessorAvailableForHour(profesor, hourIndex),
+            )
+          ) {
+            continue;
+          }
+
+          const hasHardBlock = hourRange.some(
+            (hourIndex) =>
+              !Rules.checkBlocked(this.horario, {
+                dia: day,
+                hora: hourIndex,
+                grupoId: grupo.id,
+                profesorId: profesor.id,
+                academiaId: asignatura.academiaId,
+              }).valid,
+          );
+          if (hasHardBlock) continue;
+
+          proposals.push({
+            day,
+            hours: hourRange,
+            profesor,
+            score: this.scoreCandidate(grupo, profesor, day, hourRange, kind),
+          });
+        }
+      }
+    }
+
+    return proposals.sort((a, b) => b.score - a.score);
+  }
+
+  collectConflictBlocksForProposal(grupo, asignatura, candidate) {
+    const blocks = new Map();
+    const addSessionBlock = (sesion) => {
+      if (sesion.grupoId === grupo.id) {
+        return false;
+      }
+      const block = this.getBlockForSession(sesion);
+      if (!block) return false;
+      blocks.set(this.getRepairBlockKey(block), block);
+      return true;
+    };
+
+    const academy = this.dataStore.getAcademia?.(asignatura.academiaId);
+    const roomLimit = Number(academy?.limiteSalon);
+
+    for (const hourIndex of candidate.hours) {
+      const sessionsAtHour = this.horario.sesiones.filter(
+        (sesion) => sesion.dia === candidate.day && sesion.hora === hourIndex,
+      );
+
+      if (
+        sessionsAtHour.some(
+          (sesion) => sesion.grupoId === grupo.id,
+        )
+      ) {
+        return { hardConflict: true, blocks: [] };
+      }
+
+      sessionsAtHour
+        .filter((sesion) => sesion.profesorId === candidate.profesor.id)
+        .forEach(addSessionBlock);
+
+      if (Number.isFinite(roomLimit) && roomLimit > 0) {
+        const academySessions = sessionsAtHour.filter((sesion) => {
+          const sessionSubject = this.dataStore.getAsignatura(sesion.asignaturaId);
+          return sessionSubject?.academiaId === asignatura.academiaId;
+        });
+        const occupiedByProfessor = new Map();
+        academySessions.forEach((sesion) => {
+          if (!occupiedByProfessor.has(sesion.profesorId)) {
+            occupiedByProfessor.set(sesion.profesorId, sesion);
+          }
+        });
+        occupiedByProfessor.delete(candidate.profesor.id);
+
+        const needed = occupiedByProfessor.size - roomLimit + 1;
+        if (needed > 0) {
+          const candidates = [...occupiedByProfessor.values()]
+            .map((sesion) => this.getBlockForSession(sesion))
+            .filter(Boolean)
+            .filter((block) => !this.isBlockLocked(block))
+            .sort((a, b) => a.hours.length - b.hours.length);
+          const selectedProfessors = new Set();
+          for (const block of candidates) {
+            if (selectedProfessors.size >= needed) break;
+            selectedProfessors.add(block.profesorId);
+            blocks.set(this.getRepairBlockKey(block), block);
+          }
+          if (selectedProfessors.size < needed) {
+            return { hardConflict: true, blocks: [] };
+          }
+        }
+      }
+    }
+
+    const blockList = [...blocks.values()];
+    if (blockList.some((block) => this.isBlockLocked(block))) {
+      return { hardConflict: true, blocks: [] };
+    }
+    return { hardConflict: false, blocks: blockList };
+  }
+
+  relocateBlock(block, { excludeOriginal = true } = {}) {
+    const grupo = this.dataStore.getGrupo(block.grupoId);
+    const asignatura = this.dataStore.getAsignatura(block.asignaturaId);
+    if (!grupo || !asignatura || this.isBlockLocked(block)) return null;
+    const variantKey = GroupService.getRequirementStatus(
+      { data: this.dataStore.data, horario: this.horario },
+      grupo,
+      asignatura,
+      { useVariants: true },
+    ).variantKey;
+
+    const profesores = this.getCandidateProfesores(
+      asignatura,
+      block.profesorId,
+      true,
+    );
+    if (profesores.length === 0) return null;
+
+    const candidate = this.findBestCandidate({
+      grupo,
+      asignatura,
+      profesores,
+      dur: Math.max(1, block.hours?.length || 1),
+      kind: block.kind || "clase",
+      variantKey,
+      randomizeTop: true,
+      excludeBlock: excludeOriginal
+        ? { day: block.day, startHour: block.startHour }
+        : null,
+    });
+    if (!candidate) return null;
+
+    const validation = this.validateCandidate(
+      grupo,
+      asignatura,
+      candidate.profesor,
+      candidate.day,
+      candidate.hours,
+      block.kind || "clase",
+      { variantKey },
+    );
+    if (!validation.valid) return null;
+
+    const movedSessions = [];
+    this.applyCandidate(
+      grupo.id,
+      asignatura.id,
+      candidate,
+      movedSessions,
+      block.kind || "clase",
+    );
+    return { candidate, movedSessions };
+  }
+
+  repairRequestWithGlobalMove(
+    grupo,
+    request,
+    { maxCandidates = 36, maxDisplacedBlocks = 4 } = {},
+  ) {
+    const asignatura = this.dataStore.getAsignatura(request.asignaturaId);
+    if (!asignatura) return null;
+
+    const profesores = this.getCandidateProfesores(
+      asignatura,
+      request.profesorId,
+      !!request.profesorId,
+    );
+    if (profesores.length === 0) return null;
+
+    const proposals = this.collectRepairCandidateProposals({
+      grupo,
+      asignatura,
+      profesores,
+      dur: Math.max(
+        1,
+        request.blockDuration ?? (asignatura.duracionSegmentos || 1),
+      ),
+      kind: request.kind || "clase",
+    });
+
+    for (const proposal of proposals.slice(0, maxCandidates)) {
+      const conflict = this.collectConflictBlocksForProposal(
+        grupo,
+        asignatura,
+        proposal,
+      );
+      if (conflict.hardConflict || conflict.blocks.length === 0) {
+        continue;
+      }
+      if (conflict.blocks.length > maxDisplacedBlocks) continue;
+
+      const snapshot = this.captureAllSessions();
+      conflict.blocks.forEach((block) => this.removeBlock(block.grupoId, block));
+
+      const targetValidation = this.validateCandidate(
+        grupo,
+        asignatura,
+        proposal.profesor,
+        proposal.day,
+        proposal.hours,
+        request.kind || "clase",
+        { variantKey: request.variantKey || null },
+      );
+      if (!targetValidation.valid) {
+        this.restoreAllSessions(snapshot);
+        continue;
+      }
+
+      const assigned = [];
+      this.applyCandidate(
+        grupo.id,
+        asignatura.id,
+        proposal,
+        assigned,
+        request.kind || "clase",
+      );
+
+      const displacedGroupIds = new Set();
+      let successful = true;
+      for (const block of conflict.blocks) {
+        const relocation = this.relocateBlock(block);
+        if (!relocation) {
+          successful = false;
+          break;
+        }
+        displacedGroupIds.add(block.grupoId);
+      }
+
+      if (successful) {
+        return {
+          assigned,
+          displacedGroupIds: [...displacedGroupIds],
+          movedBlocks: conflict.blocks.length,
+        };
+      }
+      this.restoreAllSessions(snapshot);
+    }
+
+    return null;
+  }
+
+  repairGroupScheduleGlobally(
+    grupoId,
+    requests,
+    { maxCandidates = 36, maxDisplacedBlocks = 4 } = {},
+  ) {
+    const grupo = this.dataStore.getGrupo(grupoId);
+    if (!grupo) {
+      return {
+        assigned: [],
+        displacedGroupIds: [],
+        movedBlocks: 0,
+        attempted: 0,
+      };
+    }
+
+    const pendingRequests = [...requests].sort(
+      (a, b) => this.getRequestDifficulty(b) - this.getRequestDifficulty(a),
+    );
+    const result = {
+      assigned: [],
+      displacedGroupIds: new Set(),
+      movedBlocks: 0,
+      attempted: 0,
+    };
+
+    pendingRequests.forEach((request) => {
+      result.attempted += 1;
+      const repair = this.repairRequestWithGlobalMove(grupo, request, {
+        maxCandidates,
+        maxDisplacedBlocks,
+      });
+      if (!repair) return;
+      result.assigned.push(...repair.assigned);
+      repair.displacedGroupIds.forEach((id) => result.displacedGroupIds.add(id));
+      result.movedBlocks += repair.movedBlocks;
+    });
+
+    result.displacedGroupIds = [...result.displacedGroupIds];
+    return result;
   }
 
   cloneGroupSessions(grupoId) {
@@ -809,6 +1296,7 @@ class Scheduler {
       ) {
         last.endHour = sesion.hora;
         last.hours.push(sesion.hora);
+        last.locked = last.locked || sesion.locked === true;
         return;
       }
 
@@ -844,6 +1332,80 @@ class Scheduler {
         hourSet.has(sesion.hora)
       );
     });
+  }
+
+  cleanupOverassignedBlocks(grupoId, { useVariants = true } = {}) {
+    const grupo = this.dataStore.getGrupo(grupoId);
+    if (!grupo) {
+      return { removedBlocks: [], removedSessions: 0, lockedExtras: 0 };
+    }
+
+    const validationApp = {
+      data: this.dataStore.data,
+      horario: this.horario,
+    };
+    const removedBlocks = [];
+    let removedSessions = 0;
+    let lockedExtras = 0;
+
+    GroupService.getPlanAsignaturas(validationApp, grupo).forEach((asignatura) => {
+      const status = GroupService.getRequirementStatus(
+        validationApp,
+        grupo,
+        asignatura,
+        { useVariants },
+      );
+      const remaining = this.getBlocksForGroup(grupoId).filter(
+        (block) => block.asignaturaId === asignatura.id,
+      );
+
+      (status.requiredBlocks || []).forEach((requiredBlock) => {
+        const exactIndex = remaining.findIndex(
+          (block) =>
+            block.kind === requiredBlock.kind &&
+            block.hours.length === requiredBlock.duration,
+        );
+        const matchIndex =
+          exactIndex >= 0
+            ? exactIndex
+            : remaining.findIndex(
+                (block) =>
+                  block.kind === requiredBlock.kind &&
+                  GroupService.isSingleInstanceKind(requiredBlock.kind) &&
+                  block.hours.length >= requiredBlock.duration,
+              );
+        if (matchIndex < 0) return;
+
+        const matched = remaining.splice(matchIndex, 1)[0];
+        const isOverlong =
+          GroupService.isSingleInstanceKind(requiredBlock.kind) &&
+          matched.hours.length > requiredBlock.duration;
+        if (isOverlong) {
+          // Rebuild the complete block at the requested duration.  Trimming
+          // one hour in place could leave a stale blockId or a locked segment
+          // in the middle of it.
+          if (matched.locked) {
+            lockedExtras += matched.hours.length - requiredBlock.duration;
+          } else {
+            removedSessions += matched.hours.length;
+            this.removeBlock(grupoId, matched);
+            removedBlocks.push(matched);
+          }
+        }
+      });
+
+      remaining.forEach((block) => {
+        if (block.locked) {
+          lockedExtras += block.hours.length;
+          return;
+        }
+        removedSessions += block.hours.length;
+        this.removeBlock(grupoId, block);
+        removedBlocks.push(block);
+      });
+    });
+
+    return { removedBlocks, removedSessions, lockedExtras };
   }
 
   cleanupDuplicateSingleInstanceBlocks(grupoId) {
@@ -921,6 +1483,14 @@ class Scheduler {
       const missingKinds = this.getMissingRequestLabels(grupo.id, requestList);
 
       for (let child = 0; child < childrenPerGeneration; child += 1) {
+        const childNow =
+          typeof performance !== "undefined" && performance.now
+            ? performance.now()
+            : Date.now();
+        if (childNow - startedAt >= maxMilliseconds) {
+          timedOut = true;
+          break;
+        }
         this.restoreGroupSessions(grupo.id, parentSnapshot);
 
         const removedBlocks = this.removeRandomBlocks(
@@ -948,6 +1518,8 @@ class Scheduler {
           bestChildSnapshot = this.cloneGroupSessions(grupo.id);
         }
       }
+
+      if (timedOut) break;
 
       parentSnapshot = bestChildSnapshot;
       this.restoreGroupSessions(grupo.id, parentSnapshot);
@@ -1077,14 +1649,38 @@ class Scheduler {
     ].join("|");
   }
 
-  buildOptimizationRequests(grupoId, pendingRequests = []) {
-    const currentBlocks = this.getBlocksForGroup(grupoId).map((block) => ({
-      asignaturaId: block.asignaturaId,
-      profesorId: block.profesorId ?? null,
-      kind: block.kind || "clase",
-      blockDuration: Math.max(1, block.hours?.length || 1),
-      horasPendientes: Math.max(1, block.hours?.length || 1),
-    }));
+  buildOptimizationRequests(grupoId, pendingRequests = [], { useVariants = true } = {}) {
+    const grupo = this.dataStore.getGrupo(grupoId);
+    const variantKeys = new Map(
+      pendingRequests
+        .filter((request) => request?.variantKey)
+        .map((request) => [request.asignaturaId, request.variantKey]),
+    );
+    const currentBlocks = this.getBlocksForGroup(grupoId).map((block) => {
+      let variantKey = variantKeys.get(block.asignaturaId) || null;
+      if (!variantKey && grupo) {
+        const asignatura = this.dataStore.getAsignatura(block.asignaturaId);
+        if (asignatura) {
+          variantKey = GroupService.getRequirementStatus(
+            {
+              data: this.dataStore.data,
+              horario: this.horario,
+            },
+            grupo,
+            asignatura,
+            { useVariants },
+          ).variantKey;
+        }
+      }
+      return {
+        asignaturaId: block.asignaturaId,
+        profesorId: block.profesorId ?? null,
+        kind: block.kind || "clase",
+        variantKey,
+        blockDuration: Math.max(1, block.hours?.length || 1),
+        horasPendientes: Math.max(1, block.hours?.length || 1),
+      };
+    });
 
     return [...currentBlocks, ...pendingRequests];
   }
@@ -1128,6 +1724,7 @@ class Scheduler {
         asignaturaId: req.asignaturaId,
         profesorId: req?.profesorId ?? null,
         kind: req.kind || "clase",
+        variantKey: req.variantKey || null,
         blockDuration: Math.max(
           1,
           req.blockDuration ?? (asignatura.duracionSegmentos || 1),
@@ -1178,6 +1775,7 @@ class Scheduler {
         profesores,
         dur: task.blockDuration,
         kind: task.kind || "clase",
+        variantKey: task.variantKey || null,
         randomizeTop,
       });
 
@@ -1258,6 +1856,25 @@ class Scheduler {
     if (usedLoads.length > 0) {
       score += Math.max(...usedLoads) - Math.min(...usedLoads);
     }
+
+    const breakStats = this.getGroupBreakStats(grupoId);
+    const breakTarget = groupSessions.length > 0
+      ? this.getWeeklyAdvisoryBreakTarget()
+      : 0;
+    const missingBreaks = Math.max(
+      0,
+      breakTarget - breakStats.internalFreeSlots,
+    );
+    const breakDayTarget = this.getAdvisoryBreakDayTarget(daysUsed.size);
+    const missingBreakDays = Math.max(
+      0,
+      breakDayTarget - breakStats.daysWithBreak,
+    );
+    // A half-hour between two classes is useful for advising and student
+    // movement. Keep the target as a soft objective so hard constraints and
+    // complete subject coverage always remain more important.
+    score += missingBreaks * 9;
+    score += missingBreakDays * 7;
 
     for (let day = 0; day < 5; day += 1) {
       const hours = hoursByDay[day].sort((a, b) => a - b);
