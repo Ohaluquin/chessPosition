@@ -191,6 +191,24 @@ const GroupService = {
     return before - app.horario.sesiones.length;
   },
 
+  deleteGroup(app, grupoId) {
+    if (app.data.grupos.filter((grupo) => grupo.id === grupoId).length !== 1) return false;
+    app.data.grupos = app.data.grupos.filter((grupo) => grupo.id !== grupoId);
+    app.horario.sesiones = app.horario.sesiones.filter(
+      (sesion) => sesion.grupoId !== grupoId,
+    );
+    app.horario.bloqueos = app.horario.bloqueos.filter(
+      (bloqueo) => !(bloqueo.scope === "GRUPO" && bloqueo.targetId === grupoId),
+    );
+    app.data.profesores.forEach((profesor) => {
+      profesor.gruposAsignados = (profesor.gruposAsignados || []).filter(
+        (id) => id !== grupoId,
+      );
+    });
+    // Keep reusable template rules and classroom preferences for future groups.
+    return true;
+  },
+
   getVariantMatchSummary(requiredBlocks, scheduledBlocks) {
     const remaining = (scheduledBlocks || []).map((block, index) => ({
       ...block,
@@ -424,13 +442,11 @@ const GroupService = {
     // instead of guessing a shorter flexible distribution from partial
     // sessions (which is how values such as 7 can replace an expected 9).
     if (variants.some((variant) => variant.key === "default")) {
-      structureMap[asignatura.id] = "default";
       return "default";
     }
 
     const best = this.selectBestStructureVariant(app, grupo, asignatura);
     const chosenKey = best?.key || variants[0]?.key || "default";
-    structureMap[asignatura.id] = chosenKey;
     return chosenKey;
   },
 

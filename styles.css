@@ -92,6 +92,81 @@ button:hover {
   background-color: #d32f2f;
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.workspace-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.workspace-tools > small,
+#btn-review,
+#btn-recovery {
+  grid-column: 1 / -1;
+}
+
+#workspace-status {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+#workspace-status[data-state="error"] { color: #a12920; }
+
+.modal-content.workspace-modal-content {
+  box-sizing: border-box;
+  width: min(650px, 94vw);
+  max-height: 90vh;
+  margin: 5vh auto;
+  overflow-y: auto;
+}
+
+.modal-content.review-modal-content { width: min(950px, 94vw); }
+
+#review-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.review-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #f0cc8c;
+  background: #fff8ec;
+}
+
+.review-issue > span {
+  flex: 1 1 260px;
+  overflow-wrap: anywhere;
+}
+
+.review-error {
+  border-color: #efb0a9;
+  background: #fff1ef;
+}
+
+.workspace-modal-content > .modal-actions {
+  position: sticky;
+  bottom: -20px;
+  padding: 12px 0;
+  background: var(--surface-color);
+  flex-wrap: wrap;
+}
+
 .container {
   display: flex;
   flex: 1;

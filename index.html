@@ -17,6 +17,14 @@
                 <p>Menu de trabajo</p>
             </div>
 
+            <div class="workspace-tools" aria-label="Protección del trabajo">
+                <button id="btn-undo" type="button" disabled>Deshacer</button>
+                <button id="btn-redo" type="button" disabled>Rehacer</button>
+                <button id="btn-review" type="button">Revisar horario</button>
+                <button id="btn-recovery" type="button" hidden>Restaurar copia local</button>
+                <small id="workspace-status" role="status" aria-live="polite"></small>
+            </div>
+
             <div class="sidebar-menu">
                 <section class="menu-section is-open" data-section="archivos">
                     <button class="menu-toggle" type="button" data-toggle-section="archivos" aria-expanded="true">
@@ -145,6 +153,7 @@
                     <div class="group-editor-actions">
                         <button id="btn-group-save" class="btn-primary">Guardar Grupo</button>
                         <button id="btn-group-cancel" style="display:none;">Cancelar</button>
+                        <button id="btn-group-delete" type="button" class="btn-danger" hidden>Eliminar grupo</button>
                     </div>
                 </div>
 
@@ -349,6 +358,35 @@
         </div>
     </div>
 
+    <div id="dialog-recovery" class="modal" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+        <div class="modal-content workspace-modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="recovery-title">Recuperar trabajo anterior</h2>
+            <p id="recovery-summary"></p>
+            <p>Esta copia se guarda únicamente en este navegador. No modifica la plantilla fija ni el JSON original.
+                Exporta un JSON para conservar un respaldo independiente. El historial de Deshacer comienza de nuevo al restaurar.</p>
+            <div class="modal-actions">
+                <button id="btn-recovery-later" type="button">Ahora no</button>
+                <button id="btn-recovery-restore" type="button" class="btn-primary">Restaurar copia</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dialog-review" class="modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
+        <div class="modal-content workspace-modal-content review-modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="review-title">Revisión del horario</h2>
+            <p id="review-summary"></p>
+            <p class="config-notice">Revisa materias incompletas, variantes, profesores, aulas y conflictos.
+                Puedes exportar con pendientes para guardar un respaldo; la revisión no cambia tus datos.</p>
+            <ul id="review-issues"></ul>
+            <div class="modal-actions">
+                <button id="btn-review-close" type="button">Cerrar</button>
+                <button id="btn-review-export" type="button" class="btn-primary" hidden>Exportar JSON</button>
+            </div>
+        </div>
+    </div>
+
     <script src="core/models.js"></script>
     <script src="core/persistence.js"></script>
     <script src="core/rules.js"></script>
@@ -357,6 +395,8 @@
     <script src="core/scheduler.js"></script>
     <script src="core/classroom-service.js"></script>
     <script src="core/report-service.js"></script>
+    <script src="core/workspace-history.js"></script>
+    <script src="core/schedule-audit.js"></script>
     <script src="ui/dialogs.js"></script>
     <script src="ui/views.js"></script>
     <script src="ui/group-view.js"></script>
@@ -365,6 +405,7 @@
     <script src="ui/aula-view.js"></script>
     <script src="ui/schedule-editor.js"></script>
     <script src="ui/config-view.js"></script>
+    <script src="ui/workspace-view.js"></script>
     <script src="data/template-bundles.js"></script>
     <script src="ui/app.js"></script>
 </body>

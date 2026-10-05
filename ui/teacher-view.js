@@ -184,9 +184,6 @@ const TeacherView = {
     const workStart = document.getElementById("prof-work-start");
     const workEnd = document.getElementById("prof-work-end");
 
-    if (inpName) p.nombre = inpName.value.trim() || p.nombre;
-    if (selTurno) p.turno = selTurno.value;
-    if (chkActivo) p.activo = chkActivo.checked;
     const customStart = workStart?.value || "";
     const customEnd = workEnd?.value || "";
     if ((customStart && !customEnd) || (!customStart && customEnd)) {
@@ -197,6 +194,9 @@ const TeacherView = {
       alert("El horario excepcional del profesor no es válido.");
       return;
     }
+    if (inpName) p.nombre = inpName.value.trim() || p.nombre;
+    if (selTurno) p.turno = selTurno.value;
+    if (chkActivo) p.activo = chkActivo.checked;
     p.horarioLaboral = customStart ? { inicio: customStart, fin: customEnd } : null;
 
     this.renderList(app);
@@ -257,9 +257,9 @@ const TeacherView = {
     const selDisp = document.getElementById("prof-grupos-disponibles");
     const selAsig = document.getElementById("prof-grupos-asignados");
 
-    if (btnAdd) btnAdd.onclick = () => this.assignSelectedGroup(app);
-    if (btnRem) btnRem.onclick = () => this.unassignSelectedGroup(app);
-    if (btnRebalance) btnRebalance.onclick = () => this.rebalanceAcademia(app);
+    if (btnAdd) btnAdd.onclick = () => app.assignSelectedGroupToProfesor();
+    if (btnRem) btnRem.onclick = () => app.unassignSelectedGroupFromProfesor();
+    if (btnRebalance) btnRebalance.onclick = () => app.editWorkspace("Rebalancear academia", () => this.rebalanceAcademia(app));
 
     if (selDisp) {
       selDisp.onchange = () => {

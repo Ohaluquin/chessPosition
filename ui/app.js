@@ -39,7 +39,11 @@ class App {
 
   async init() {
     this.setupUI();
+    this.workspaceHistory = new WorkspaceHistory(this, {
+      onChange: () => WorkspaceView.update(this),
+    });
     this.setupEventListeners();
+    WorkspaceView.setup(this);
   }
 
   setupUI() {
@@ -75,7 +79,8 @@ class App {
     const btnEditConfig = document.getElementById("btn-edit-config");
     if (btnEditConfig) btnEditConfig.onclick = () => ConfigView.open(this);
     const btnConfigSave = document.getElementById("btn-config-save");
-    if (btnConfigSave) btnConfigSave.onclick = () => ConfigView.save(this);
+    if (btnConfigSave) btnConfigSave.onclick = () =>
+      this.editWorkspace("Editar configuración", () => ConfigView.save(this));
     const btnConfigCancel = document.getElementById("btn-config-cancel");
     if (btnConfigCancel) {
       btnConfigCancel.onclick = () => Dialogs.close("dialog-config");
@@ -178,17 +183,27 @@ class App {
     const btnGroupSave = document.getElementById("btn-group-save");
     if (btnGroupSave) btnGroupSave.onclick = () => this.saveGrupoEdits();
     const btnGroupNew = document.getElementById("btn-group-new");
-    if (btnGroupNew) btnGroupNew.onclick = () => GroupView.startNew(this);
+    if (btnGroupNew) btnGroupNew.onclick = () =>
+      this.editWorkspace("Nuevo grupo", () => GroupView.startNew(this));
     const btnGroupDuplicate = document.getElementById("btn-group-duplicate");
-    if (btnGroupDuplicate) btnGroupDuplicate.onclick = () => GroupView.startDuplicate(this);
+    if (btnGroupDuplicate) btnGroupDuplicate.onclick = () =>
+      this.editWorkspace("Duplicar grupo", () => GroupView.startDuplicate(this));
     const btnGroupCancel = document.getElementById("btn-group-cancel");
     if (btnGroupCancel) btnGroupCancel.onclick = () => GroupView.cancelDraft(this);
+    const btnGroupDelete = document.getElementById("btn-group-delete");
+    if (btnGroupDelete) btnGroupDelete.onclick = () => GroupView.deleteGroup(this);
 
     document.addEventListener("keydown", (e) => {
       if (!e.ctrlKey) return;
 
       const tag = (e.target?.tagName || "").toUpperCase();
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        WorkspaceView.moveHistory(this, e.shiftKey || e.key.toLowerCase() === "y");
+        return;
+      }
 
       if (e.key === "1") this.switchView("GRUPO");
       if (e.key === "2") this.switchView("PROFESOR");
@@ -254,6 +269,7 @@ class App {
   }
 
   loadBundledTemplate(templateKey) {
+    if (!this.confirmWorkspaceReplacement()) return;
     const templateInfo = this.templateCatalog?.[templateKey];
     if (!templateInfo) {
       alert("No se encontro la plantilla solicitada.");
@@ -338,7 +354,7 @@ class App {
   }
 
   selectGrupo(grupo) {
-    GroupView.select(this, grupo);
+    return this.editWorkspace("Asignación inicial de profesores", () => GroupView.select(this, grupo));
   }
 
   selectAcademia(academia) {
@@ -477,6 +493,7 @@ class App {
   }
 
   handleCellClick(day, hour, ev) {
+    if (this.automationBusy || this.workspaceHistory?.running) return;
     const v = this.currentView;
     if (!v || !v.entity) {
       alert("Selecciona un elemento de la lista primero.");
@@ -484,7 +501,8 @@ class App {
     }
 
     if (v.type === "ACADEMIA") {
-      AcademyView.handleCellClick(this, v.entity, day, hour);
+      this.editWorkspace("Cambiar bloqueo de academia", () =>
+        AcademyView.handleCellClick(this, v.entity, day, hour));
       return;
     }
 
@@ -494,7 +512,8 @@ class App {
     }
 
     if (v.type === "PROFESOR") {
-      TeacherView.handleCellClick(this, v.entity, day, hour, ev);
+      this.editWorkspace("Cambiar disponibilidad del profesor", () =>
+        TeacherView.handleCellClick(this, v.entity, day, hour, ev));
     }
   }
 
@@ -503,22 +522,35 @@ class App {
   }
 
   saveSession() {
-    return ScheduleEditor.saveSession(this);
+    return this.editWorkspace("Guardar sesión", () => ScheduleEditor.saveSession(this));
   }
 
   deleteSession() {
-    return ScheduleEditor.deleteSession(this);
+    return this.editWorkspace("Eliminar sesión", () => ScheduleEditor.deleteSession(this));
   }
 
   runAutoSchedule() {
-    return ScheduleEditor.runAutoSchedule(this);
+    return this.editWorkspace("Llenado automático del grupo", () => ScheduleEditor.runAutoSchedule(this));
   }
 
   runAutoScheduleAll() {
-    return ScheduleEditor.runAutoScheduleAll(this);
+    return this.editWorkspace("Autoprogramar todo", () => ScheduleEditor.runAutoScheduleAll(this));
   }
 
   async runAutoAssignProfesores() {
+    return this.editWorkspace("Autoasignar profesores", async () => {
+      try {
+        return await this.autoAssignProfesores();
+      } catch (error) {
+        console.error(error);
+        alert("La asignación de profesores se detuvo. Puedes recuperar el estado anterior con Deshacer.");
+      } finally {
+        this.setAutomationBusy(false);
+      }
+    });
+  }
+
+  async autoAssignProfesores() {
     this.setAutomationBusy(true);
     this.setAutomationProgress({
       label: "Autoasignando profesores",
@@ -555,6 +587,19 @@ class App {
   }
 
   async runAutoAssignRooms() {
+    return this.editWorkspace("Autoasignar aulas", async () => {
+      try {
+        return await this.autoAssignRooms();
+      } catch (error) {
+        console.error(error);
+        alert("La asignación de aulas se detuvo. Puedes recuperar el estado anterior con Deshacer.");
+      } finally {
+        this.setAutomationBusy(false);
+      }
+    });
+  }
+
+  async autoAssignRooms() {
     this.setAutomationBusy(true);
     this.setAutomationProgress({
       label: "Autoasignando aulas",
@@ -609,19 +654,19 @@ class App {
   }
 
   exportData() {
-    Persistence.exportData(this);
+    WorkspaceView.review(this, () => Persistence.exportData(this), "JSON");
   }
 
   exportGruposHTML() {
-    ReportService.exportGruposHTML(this);
+    WorkspaceView.review(this, () => ReportService.exportGruposHTML(this), "Grupos HTML");
   }
 
   exportProfesoresHTML() {
-    ReportService.exportProfesoresHTML(this);
+    WorkspaceView.review(this, () => ReportService.exportProfesoresHTML(this), "Profesores HTML");
   }
 
   exportEscolaresTXT() {
-    ReportService.exportEscolaresTXT(this);
+    WorkspaceView.review(this, () => ReportService.exportEscolaresTXT(this), "Escolares TXT");
   }
 
   pauseForUi() {
@@ -638,10 +683,29 @@ class App {
       "btn-auto-schedule-all",
       "btn-auto-rooms",
       "btn-group-auto-schedule",
+      "btn-group-delete",
+      "btn-group-new",
+      "btn-group-duplicate",
+      "btn-group-save",
+      "btn-prof-save",
+      "btn-import",
+      "btn-load-template",
+      "btn-edit-config",
+      "btn-config-save",
+      "btn-export",
+      "btn-print-grupos",
+      "btn-print-profes",
+      "btn-export-escolares",
     ].forEach((id) => {
       const button = document.getElementById(id);
       if (button) button.disabled = !!isBusy;
     });
+    document.querySelectorAll(
+      "#group-editor input, #group-editor select, [data-group-lock-action], " +
+      "#prof-editor input, #prof-editor select, #prof-groups-ui button, " +
+      "#form-save-session, #form-delete-session",
+    ).forEach((element) => { element.disabled = !!isBusy; });
+    if (this.workspaceHistory) WorkspaceView.update(this);
   }
 
   setAutomationProgress({
@@ -695,11 +759,13 @@ class App {
   }
 
   importData(event) {
+    if (this.automationBusy || this.workspaceHistory?.running) return;
     Persistence.importData(this, event);
   }
 
   loadTemplateFromJson(jsonData, templateInfo = null) {
-    return Persistence.loadTemplate(this, jsonData, templateInfo || {});
+    return this.editWorkspace("Cargar plantilla fija", () =>
+      Persistence.loadTemplate(this, jsonData, templateInfo || {}), { markSaved: true });
   }
 
   _ensureAllAcademias() {
@@ -756,11 +822,11 @@ class App {
   }
 
   saveProfesorEdits() {
-    return TeacherView.saveEdits(this);
+    return this.editWorkspace("Editar profesor", () => TeacherView.saveEdits(this));
   }
 
   saveGrupoEdits() {
-    return GroupView.saveEdits(this);
+    return this.editWorkspace("Guardar grupo", () => GroupView.saveEdits(this));
   }
 
   _ensureProfesorGroupsUI() {
@@ -780,15 +846,28 @@ class App {
   }
 
   assignSelectedGroupToProfesor() {
-    return TeacherView.assignSelectedGroup(this);
+    return this.editWorkspace("Asignar grupo al profesor", () => TeacherView.assignSelectedGroup(this));
   }
 
   unassignSelectedGroupFromProfesor() {
-    return TeacherView.unassignSelectedGroup(this);
+    return this.editWorkspace("Quitar grupo al profesor", () => TeacherView.unassignSelectedGroup(this));
   }
 
   previewGrupoForProfesor(grupoId) {
     return TeacherView.previewGrupo(this, grupoId);
+  }
+
+  editWorkspace(label, action, options) {
+    return this.workspaceHistory ? this.workspaceHistory.run(label, action, options) : action();
+  }
+
+  confirmWorkspaceReplacement() {
+    if (this.automationBusy || this.workspaceHistory?.running) return false;
+    if (!this.workspaceHistory?.hasUnexportedChanges() && !this.groupEditorIsDraft) return true;
+    return window.confirm(
+      "Hay trabajo sin exportar. Cargar otra plantilla o JSON reemplazará la copia abierta. " +
+      "Podrás usar Deshacer durante esta sesión, pero conviene exportar primero un respaldo. ¿Continuar?",
+    );
   }
 }
 

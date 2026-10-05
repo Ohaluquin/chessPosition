@@ -6,7 +6,9 @@ El proyecto funciona únicamente en el navegador y no requiere servidor, compila
 
 ## Funciones principales
 
-- Creación, edición y duplicado de grupos regulares u optativos.
+- Creación, edición, duplicado y eliminación de grupos regulares u optativos, con confirmación.
+- Deshacer y Rehacer para cambios aplicados, incluidos los llenados automáticos completos.
+- Recuperación local automática y revisión de pendientes/conflictos antes de exportar.
 - Plan de materias, estructura semanal y profesor por asignatura.
 - Asignación automática de profesores con balance de carga y compatibilidad de turno.
 - Programación manual por bloques y autoprogramación de un grupo o de todos los grupos.
@@ -48,9 +50,22 @@ Después visita `http://localhost:8000/`.
 7. Programa sesiones desde la cuadrícula, autoprograma el grupo seleccionado o procesa todos los grupos.
 8. Usa `LOCK` en los bloques que no deban moverse durante una reoptimización.
 9. Autoasigna las aulas faltantes y revisa los horarios desde las distintas vistas.
-10. Exporta el JSON actualizado como respaldo y genera los reportes necesarios.
+10. Usa **Revisar horario** o revisa el resumen que aparece al exportar; corrige los problemas o exporta con pendientes para guardar un respaldo.
+11. Exporta el JSON actualizado y genera los reportes necesarios.
 
 Antes de cargar una plantilla o ejecutar una reasignación masiva, conserva una copia del JSON de trabajo.
+
+## Protección y recuperación del trabajo
+
+**Eliminar grupo**, en el editor del grupo seleccionado, borra el grupo, sus sesiones (también las que tienen `LOCK`), sus bloqueos y sus vínculos con profesores. No elimina profesores, asignaturas ni aulas; conserva las reglas y preferencias reutilizables de la plantilla. La confirmación muestra cuántos segmentos y segmentos con `LOCK` se quitarán.
+
+**Deshacer** y **Rehacer** conservan las últimas 20 acciones aplicadas durante la sesión: grupos, planes, variantes, profesores, franjas, configuración, sesiones, bloqueos y automatizaciones. Cada llenado automático completo cuenta como una acción, aunque mueva sesiones de varios grupos. También se puede deshacer una importación o la carga de otra plantilla. Los atajos son `Ctrl+Z`, `Ctrl+Y` y `Ctrl+Shift+Z`; dentro de campos de texto se conserva la edición normal del navegador. Restaurar no vuelve a autoasignar profesores ni recrea bloqueos que se quitaron manualmente.
+
+Los cambios **aplicados** se respaldan automáticamente en `localStorage`, bajo la clave `generador-horarios:workspace:v1`. Al volver a abrir la página, se ofrece **Restaurar copia**; **Ahora no** permite posponerla sin borrarla. Cargar o modificar otra copia de trabajo sustituye ese respaldo. El historial de Deshacer no se conserva al recargar. Los borradores sin guardar y los campos todavía no aplicados no forman parte del respaldo.
+
+La recuperación pertenece al navegador y origen utilizados (por ejemplo, GitHub Pages y localhost tienen copias distintas). No se sincroniza entre equipos, no escribe en GitHub ni modifica el JSON importado. Las pestañas del mismo navegador/origen comparten el respaldo más reciente: evita editar dos copias a la vez en ellas. Si el almacenamiento no está disponible o se llena, se muestra un aviso y se puede seguir trabajando/exportando. Borrar los datos del navegador o usar navegación privada puede perder la recuperación; exporta siempre un JSON independiente. Se avisa al cerrar con cambios no exportados.
+
+**Revisar horario** reúne materias incompletas, exceso o estructura incorrecta según la variante efectiva, profesores pendientes/incompatibles, aulas pendientes, sesiones fuera de horario/franja, referencias inexistentes, bloqueos y sesiones simultáneas de grupo, profesor o aula. La revisión no modifica los datos y permite ir directamente al grupo afectado. También aparece antes de exportar JSON, HTML o TXT; no impide exportar un horario parcial como respaldo.
 
 ## Reglas relevantes
 
@@ -152,9 +167,15 @@ Se necesita Node.js únicamente para ejecutar las pruebas, no para usar la aplic
 
 ```powershell
 node tests/regression.test.js
+node tests/workspace.test.js
+node tests/workspace-ui.test.js
 ```
 
 La prueba comprueba la migración del formato anterior, la conservación de sesiones y bloqueos, las restricciones de optativas, la selección de laboratorios y la autoasignación no destructiva de aulas. Si el fixture real no está disponible, utiliza `data/semestre_A.json`.
+
+Las pruebas de espacio de trabajo cubren eliminación/cancelación, limpieza de referencias, Deshacer/Rehacer, recuperación exacta, fallos de almacenamiento, límites del historial y revisión sin autoconflictos ni cambios en los datos.
+
+La prueba de interfaz carga los scripts de `index.html` en un DOM de prueba sin dependencias externas y verifica los botones, el guardado, los bloqueos, la revisión/exportación y el arranque con recuperación. No sustituye una revisión visual en un navegador real.
 
 Para validar además la sintaxis de un archivo JavaScript concreto:
 

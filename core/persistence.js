@@ -1,8 +1,8 @@
 const Persistence = {
   CURRENT_VERSION: 6,
 
-  exportData(app) {
-    const exportObj = {
+  buildExportData(app) {
+    return {
       ...app.data,
       meta: {
         ...(app.data.meta || {}),
@@ -10,7 +10,14 @@ const Persistence = {
       },
       sesiones: app.horario.sesiones,
       bloqueos: app.horario.bloqueos,
+      config: app.data.config || {},
+      reglasFijas: app.data.reglasFijas || [],
+      franjasOptativas: app.data.franjasOptativas || [],
     };
+  },
+
+  exportData(app) {
+    const exportObj = this.buildExportData(app);
     const source = app.fileContext || null;
 
     let suggestedName = source?.fileName || "horario_backup.json";
@@ -37,6 +44,7 @@ const Persistence = {
     }
 
     this.downloadJson(exportObj, suggestedName);
+    app.workspaceHistory?.markExported();
   },
 
   importData(app, event) {
@@ -45,11 +53,14 @@ const Persistence = {
 
     this.readJsonFile(file)
       .then((jsonData) => {
-        this.applyState(app, this.hydrateState(jsonData), {
-          kind: "import",
-          fileName: file.name,
-          label: file.name,
-        });
+        if (!app.confirmWorkspaceReplacement()) return;
+        app.editWorkspace("Importar JSON", () => {
+          this.applyState(app, this.hydrateState(jsonData), {
+            kind: "import",
+            fileName: file.name,
+            label: file.name,
+          });
+        }, { markSaved: true });
         alert("Datos importados correctamente.");
       })
       .catch((err) => {
@@ -106,7 +117,7 @@ const Persistence = {
     return "regular";
   },
 
-  hydrateState(jsonData) {
+  hydrateState(jsonData, { exact = false } = {}) {
     const data = {
       meta: jsonData.meta ?? {},
       config: jsonData.config ?? {},
@@ -173,7 +184,7 @@ const Persistence = {
       ),
     };
 
-    this.ensureAllAcademias(data);
+    if (!exact) this.ensureAllAcademias(data);
 
     const horario = new Horario();
 
@@ -209,8 +220,12 @@ const Persistence = {
       });
     }
 
-    this.applyFixedRules(data, horario);
-    this.applyOptativeSlots(data, horario);
+    // History/recovery snapshots already include the effective blocks. Reapplying
+    // derived rules here would undo an intentional manual unblock.
+    if (!exact) {
+      this.applyFixedRules(data, horario);
+      this.applyOptativeSlots(data, horario);
+    }
 
     return { data, horario };
   },
@@ -224,7 +239,16 @@ const Persistence = {
     const segmentMinutes = Number(app.data?.config?.segmentoMin) || 30;
     app.hours = app.buildSlots(scheduleStart, scheduleEnd, segmentMinutes);
     app.currentView = { type: "GRUPO", entity: null };
+    app.groupEditorIsDraft = false;
+    app.groupEditorDraftSourceId = null;
+    app.groupEditorPendingPlanIds = null;
+    app.groupEditorSelectedAsignaturaId = null;
+    app.groupEditorEditingSession = null;
+    document.querySelectorAll(".modal").forEach((modal) => {
+      modal.style.display = "none";
+    });
     app.setupUI();
+    app.switchView("GRUPO");
     app.updateTitle();
     app.refreshGrid();
   },

@@ -82,6 +82,33 @@ const GroupView = {
     app.refreshGrid();
   },
 
+  deleteGroup(app) {
+    const grupo = app.currentView?.type === "GRUPO" ? app.currentView.entity : null;
+    if (!grupo || app.groupEditorIsDraft || app.automationBusy || app.workspaceHistory?.running) return;
+    const matchingGroups = app.data.grupos.filter((item) => item.id === grupo.id);
+    if (matchingGroups.length !== 1) {
+      alert("No se puede eliminar el grupo: su identificador no existe o está duplicado. Revisa el JSON de trabajo.");
+      return;
+    }
+    const sessions = GroupService.getSessions(app, grupo.id);
+    const locked = sessions.filter((session) => session.locked).length;
+    if (!window.confirm(
+      `¿Eliminar el grupo ${grupo.nombre}?\n\n` +
+      `Se borrarán sus ${sessions.length} segmentos de 30 minutos, incluidos ${locked} con LOCK, ` +
+      "sus bloqueos y sus vínculos con profesores.\n" +
+      "No se eliminarán profesores, materias ni aulas. La plantilla fija no cambia.\n\n" +
+      "Puedes recuperar el grupo con Deshacer entre las últimas 20 acciones de esta sesión.",
+    )) return;
+    app.editWorkspace(`Eliminar grupo ${grupo.nombre}`, () => {
+      if (!GroupService.deleteGroup(app, grupo.id)) return;
+      app.groupEditorEditingSession = null;
+      app.groupEditorPendingPlanIds = null;
+      app.groupEditorSelectedAsignaturaId = null;
+      Dialogs.close("dialog-session");
+      app.switchView("GRUPO");
+    });
+  },
+
   formatDiagnosticsList(items = []) {
     return items
       .map((item) => `<li>${item}</li>`)
@@ -123,7 +150,8 @@ const GroupView = {
       button.type = "button";
       button.dataset.groupLockAction = locked ? "lock" : "unlock";
       button.textContent = label;
-      button.onclick = () => this.setGroupLock(app, grupo, locked);
+      button.onclick = () => app.editWorkspace(locked ? "Bloquear grupo" : "Desbloquear grupo", () =>
+        this.setGroupLock(app, grupo, locked));
       actions.appendChild(button);
     };
     if (!actions.querySelector('[data-group-lock-action="lock"]')) {
@@ -133,9 +161,9 @@ const GroupView = {
       createButton("Desbloquear grupo", false);
     }
     actions.querySelector('[data-group-lock-action="lock"]').onclick = () =>
-      this.setGroupLock(app, grupo, true);
+      app.editWorkspace("Bloquear grupo", () => this.setGroupLock(app, grupo, true));
     actions.querySelector('[data-group-lock-action="unlock"]').onclick = () =>
-      this.setGroupLock(app, grupo, false);
+      app.editWorkspace("Desbloquear grupo", () => this.setGroupLock(app, grupo, false));
     actions.querySelectorAll("[data-group-lock-action]").forEach((button) => {
       button.style.display = app.groupEditorIsDraft ? "none" : "inline-block";
     });
@@ -221,6 +249,7 @@ const GroupView = {
     app.groupEditorIsDraft = false;
     app.groupEditorDraftSourceId = null;
     app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(grupo));
+    if (!app.workspaceHistory?.restoring) GroupService.ensureProfesorAssignments(app, grupo);
     app.currentView = { type: "GRUPO", entity: grupo };
     app.updateTitle();
     this.showEditor();
@@ -243,7 +272,6 @@ const GroupView = {
     if (!view || view.type !== "GRUPO" || !view.entity) return;
 
     const grupo = view.entity;
-    if (!app.groupEditorIsDraft) GroupService.ensureProfesorAssignments(app, grupo);
     const inputName = document.getElementById("group-name");
     const selectTurno = document.getElementById("group-turno");
     const selectGrade = document.getElementById("group-grade");
@@ -277,6 +305,11 @@ const GroupView = {
     if (saveButton) saveButton.textContent = app.groupEditorIsDraft ? "Crear Grupo" : "Guardar Grupo";
     this.ensureGroupAutoScheduleAction(app, grupo);
     this.ensureGroupLockActions(app, grupo);
+    const deleteButton = document.getElementById("btn-group-delete");
+    if (deleteButton) {
+      deleteButton.hidden = !!app.groupEditorIsDraft;
+      document.querySelector("#group-editor .group-editor-actions")?.appendChild(deleteButton);
+    }
 
     if (!(app.groupEditorPendingPlanIds instanceof Set)) {
       app.groupEditorPendingPlanIds = new Set(GroupService.getPlanAsignaturaIds(grupo));
@@ -368,9 +401,9 @@ const GroupView = {
       this.renderEditor(app);
       app.refreshGrid();
     };
-    if (selectTurno) selectTurno.onchange = refreshDraftProperties;
-    if (selectGrade) selectGrade.onchange = refreshDraftProperties;
-    if (selectType) selectType.onchange = () => {
+    if (selectTurno) selectTurno.onchange = () => app.editWorkspace("Cambiar turno del grupo", refreshDraftProperties);
+    if (selectGrade) selectGrade.onchange = () => app.editWorkspace("Cambiar grado del grupo", refreshDraftProperties);
+    if (selectType) selectType.onchange = () => app.editWorkspace("Cambiar tipo del grupo", () => {
       if (
         !app.groupEditorIsDraft &&
         selectType.value !== grupo.tipo &&
@@ -395,7 +428,8 @@ const GroupView = {
           delete GroupService.ensureOptativeSlotMap(grupo)[id];
         });
       refreshDraftProperties();
-    };
+    });
+    app.setAutomationBusy(app.automationBusy);
   },
 
   renderPlanEditor(app, grupo) {
@@ -426,7 +460,7 @@ const GroupView = {
       .join("");
 
     container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-      checkbox.onchange = () => {
+      checkbox.onchange = () => app.editWorkspace("Editar plan de materias", () => {
         if (checkbox.checked) {
           if (wantsOptatives && app.groupEditorPendingPlanIds.size >= 2) {
             checkbox.checked = false;
@@ -461,7 +495,8 @@ const GroupView = {
         }
         grupo.planAsignaturas = [...app.groupEditorPendingPlanIds];
         this.renderEditor(app);
-      };
+        app.refreshGrid();
+      });
     });
   },
 
@@ -624,7 +659,7 @@ const GroupView = {
 
     const teacherSelect = document.getElementById("group-subject-teacher");
     if (teacherSelect) {
-      teacherSelect.onchange = () => {
+      teacherSelect.onchange = () => app.editWorkspace("Cambiar profesor de la materia", () => {
         GroupService.ensureProfesorMap(view.entity)[selected.asignatura.id] =
           teacherSelect.value || null;
         if (!app.groupEditorIsDraft) {
@@ -640,12 +675,12 @@ const GroupView = {
         }
         this.renderEditor(app);
         app.refreshGrid();
-      };
+      });
     }
 
     const slotSelect = document.getElementById("group-subject-slot");
     if (slotSelect) {
-      slotSelect.onchange = () => {
+      slotSelect.onchange = () => app.editWorkspace("Cambiar franja optativa", () => {
         const nextSlotId = slotSelect.value || "";
         const previousSlotId = GroupService.getOptativeSlotIds(
           view.entity,
@@ -681,12 +716,12 @@ const GroupView = {
         );
         this.renderEditor(app);
         app.refreshGrid();
-      };
+      });
     }
 
     const variantSelect = document.getElementById("group-subject-variant");
     if (variantSelect) {
-      variantSelect.onchange = () => {
+      variantSelect.onchange = () => app.editWorkspace("Cambiar variante semanal", () => {
         const nextVariantKey = variantSelect.value || "auto";
         const structureMap = GroupService.ensureStructureMap(view.entity);
         const previousVariantKey = structureMap[selected.asignatura.id] || "auto";
@@ -702,7 +737,7 @@ const GroupView = {
 
         this.renderEditor(app);
         app.refreshGrid();
-      };
+      });
     }
   },
 
