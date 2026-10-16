@@ -2097,6 +2097,26 @@
                       "id":  "musica",
                       "nombre":  "Musica",
                       "tipo":  "especial"
+                  },
+                  {
+                      "id":  "auditorio",
+                      "nombre":  "Auditorio",
+                      "tipo":  "especial"
+                  },
+                  {
+                      "id":  "usos_multiples",
+                      "nombre":  "Salón de usos múltiples",
+                      "tipo":  "especial"
+                  },
+                  {
+                      "id":  "audiovisual_1",
+                      "nombre":  "Audiovisual 1",
+                      "tipo":  "especial"
+                  },
+                  {
+                      "id":  "audiovisual_2",
+                      "nombre":  "Audiovisual 2",
+                      "tipo":  "especial"
                   }
               ],
     "sesiones":  [

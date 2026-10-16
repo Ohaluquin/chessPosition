@@ -77,6 +77,7 @@ La recuperación pertenece al navegador y origen utilizados (por ejemplo, GitHub
 - Cada profesor puede tener un `horarioLaboral` excepcional que sustituye la ventana normal de su turno.
 - Una sesión se rechaza si genera conflicto de grupo, profesor o aula, invade un bloqueo o incumple la franja de una optativa.
 - Las materias que requieren laboratorio distinguen sus bloques de laboratorio de las clases regulares.
+- El catálogo incluye Auditorio, Salón de usos múltiples, Audiovisual 1 y Audiovisual 2 para asignación manual; la autoasignación no los propone.
 - La autoasignación de aulas completa únicamente las sesiones que todavía no tienen aula.
 - Si un grupo no declara `modalidad`, se clasifica automáticamente: en periodo impar los grados 1, 3 y 5 son de estructura; en periodo par lo son los grados 2, 4 y 6. El editor del grupo permite elegir explícitamente `estructura` o `recursamiento` cuando exista una excepción.
 
